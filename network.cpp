@@ -35,10 +35,6 @@ class Network{
 
         pair<double,double> STDPUpdate(const vector<bool>& history_i, const vector<bool>& history_j) { //history_i or j must be vector<bool>s where the higher indexes are more recent
 
-            if(history_i.size() != history_j.size()){
-                throw runtime_error("Neuron history sizes must be the same (and higher index is closer to the present)");
-            }
-
             pair<double, double> total_update = make_pair(0.0,0.0); //first: i->j second j->i
 
             int size = static_cast<int>(history_i.size());
@@ -63,25 +59,16 @@ class Network{
         }
 
         vector<vector<double>> getCorrelationMatrix() {
-            size_t numNeurons = neuronHistory[0].size();   // Number of neurons (columns in neuronHistory)
-            size_t numTimesteps = neuronHistory.size();    // Number of timesteps (rows in neuronHistory)
 
-            vector<vector<double>> corrMatrix(numNeurons, vector<double>(numNeurons, 0.0));
-
-            // added by womane with chagpt help
-            vector<vector<bool>> neuronSpikes(numNeurons, vector<bool>(numTimesteps, false));
-            for (int t = 0; t < numTimesteps; t++) {
-                for (int n = 0; n < numNeurons; n++) {
-                    neuronSpikes[n][t] = neuronHistory[t][n];
-                }
-            }
+            vector<vector<double>> corrMatrix(neurons.size(), vector<double>(neurons.size(), 0.0));
 
             // Calculate cross-correlation between each pair of neurons (i, j)
             pair<double, double> update;
-            for (int i = 0; i < numNeurons; i++) {
+
+            for (int i = 0; i < neurons.size(); i++) {
                 for (int j = 0; j < i; j++) {
                     if (i != j) { 
-                        update = STDPUpdate(neuronSpikes[i], neuronSpikes[j]);
+                        update = STDPUpdate(neuronHistory[i], neuronHistory[j]);
                         corrMatrix[i][j] = update.first;
                         corrMatrix[j][i] = update.second;
                     } else {
@@ -109,6 +96,7 @@ class Network{
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
                     neurons.assign(get<int>(pair.second), false);
+                    neuronHistory = vector<vector<bool>>(get<int>(pair.second));
                     printf("\nneurons : %d", get<int>(pair.second));
                 }else if(pair.first == "--time-window"){
                     this->timeWindow = get<int>(pair.second);
@@ -248,10 +236,12 @@ class Network{
         }
 
         void storeNeuronStates(const vector<bool> newStates) {
-            neuronHistory.push_back(newStates);
+            for(int i = 0; i < neuronHistory.size(); i++){
+                neuronHistory[i].push_back(newStates[i]);
+            }
         }
         void clearNeuronHistory(){
-            neuronHistory.clear();
+            neuronHistory = vector<vector<bool>>(neurons.size());
         }
         void printAdjMatrix(int width=1, int decimals=2) {
             printf("\n");

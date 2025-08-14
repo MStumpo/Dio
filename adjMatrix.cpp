@@ -42,7 +42,6 @@ class AdjacencyMatrix{
 					}
 					a = (a+1)%(kernelSize*2 + 1);
 
-
 					//Fetching from the cols since they're always new in a colshift
 		            for(int k = 1; i+k < data.size() && k <= kernelSize; k++){
 		            	if(normalization){
