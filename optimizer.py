@@ -20,9 +20,9 @@ def run_network(trial):
 			#k_norm = str(trial.suggest_categorical("k_norm", [0,1])),
 			k_norm = 0,
 			#train_epochs = str(trial.suggest_int("train_epochs", 1,200)),
-			train_epochs = 50,
+			train_epochs = 30,
 			#test_epochs = str(trial.suggest_int("test_epochs",1,50))
-			test_epochs = 50,
+			test_epochs = 30,
 			determinism = str(trial.suggest_float("determinism",0,1)),
 			#firing_val = str(trial.suggest_float("firing_val",-5,5))
 			firing_val = 1
@@ -43,8 +43,8 @@ def run_network(trial):
 
 def __main__():
 	study = optuna.create_study(direction="maximize",
-		study_name = "Ricky_params_categorical",
-		storage="sqlite:///Ricky_params_categorical.db",
+		study_name = "ricky_params_hybrid",
+		storage="sqlite:///ricky_params_hybrid.db",
 		load_if_exists = True)
 	study.optimize(run_network, n_trials = 500)
 	print(study.best_params)

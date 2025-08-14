@@ -18,6 +18,13 @@ std::vector<bool> randomBinarySequence(int numBits, double p = 0.5){
     return binary;
 }
 
+bool XNOR(vector<bool> input){
+    for(int i = 1; i < input.size(); i++){
+        if(input[i] != input[i-1]) return false;
+    }
+    return true;
+}
+
 vector<pair<vector<bool>, vector<bool>>> generateRandomDataset(int datasetSize=16, int inputSize=5,int outputSize=5, double p=0.5){
 
 	vector<pair<vector<bool>, vector<bool>>> dataset;
@@ -82,16 +89,73 @@ int main(int argc, char *argv[]){
 
     vector<pair<vector<bool>, vector<bool>>> dataset;
 
+
+    //For this I'll make a 1st bit switch: 0-XNOR; 1-random vector, and the rest are "payload" bits
+
     /*
-    dataset.push_back(make_pair(vector<bool>{false, false}, vector<bool>{false}));
-    dataset.push_back(make_pair(vector<bool>{false, true}, vector<bool>{false}));
-    dataset.push_back(make_pair(vector<bool>{true, false}, vector<bool>{false}));
-    dataset.push_back(make_pair(vector<bool>{true, true}, vector<bool>{true}));
-    dataset.push_back(make_pair(vector<bool>{true, true}, vector<bool>{true}));
-    dataset.push_back(make_pair(vector<bool>{true, true}, vector<bool>{true}));//repetition of these is to avoid a bias for the final answer
+    int dataset_size = 30;
+
+    int payload_size = 5;
+    int output_size = 3;
+
+    for(int i = 0; i < dataset_size; i++){
+        vector<bool> input = randomBinarySequence(1);
+        vector<bool> input2 = randomBinarySequence(payload_size);
+        vector<bool> output;
+        if(!input[0]){
+            output = vector<bool>(output_size, XNOR(input2));
+        }else{
+            output = randomBinarySequence(output_size);
+        }
+        input.insert(input.end(),input2.begin(),input2.end());
+        dataset.push_back(make_pair(input, output));
+    }
+    //this is for generating code for putting it back as a custom pre-made dataset
+    for(auto& datapoint : dataset){
+        printf("\n dataset.push_back(make_pair(vector<bool>{");
+        for(auto wawa : datapoint.first){
+            printf("%d,", wawa ? 1 : 0);
+        }
+        printf("},vector<bool>{");
+        for(auto wawa : datapoint.second){
+            printf("%d,", wawa ? 1 : 0);
+        }
+        printf("}));");
+    }
     */
-    
-    dataset = generateRandomDataset();
+     dataset.push_back(make_pair(vector<bool>{1,0,0,1,0,1},vector<bool>{0,1,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,0,1,1,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,1,1,1},vector<bool>{1,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,0,1,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,0,0,0},vector<bool>{1,0,1}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,0,1,0},vector<bool>{0,0,1}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,0,1,0},vector<bool>{1,1,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,0,1,1,1},vector<bool>{1,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,0,1,1,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,1,0,0},vector<bool>{0,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,1,0,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,1},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,1,1,1},vector<bool>{0,1,0}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,1,1,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,1,1,0},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,0,1,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,1},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,1,0,1},vector<bool>{1,0,1}));
+     dataset.push_back(make_pair(vector<bool>{0,0,1,0,1,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,1},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,0,0,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,0,1,1,0,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,0,1,0,0},vector<bool>{0,0,1}));
+     dataset.push_back(make_pair(vector<bool>{0,1,0,0,0,1},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,1,0,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,0,0,0,0},vector<bool>{0,1,0}));
+     dataset.push_back(make_pair(vector<bool>{0,1,1,0,0,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
+
 
 	Network network = Network(networkArgs);
 
