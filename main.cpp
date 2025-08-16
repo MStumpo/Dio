@@ -123,6 +123,7 @@ int main(int argc, char *argv[]){
         printf("}));");
     }
     */
+    //I decided on a custom dataset because 1. Both input and output may be random and thus this may not a function 2. nxfalse or nxtrue is a 0.5^n chance and it'd barely contain positive XNOR examples
      dataset.push_back(make_pair(vector<bool>{1,0,0,1,0,1},vector<bool>{0,1,0}));
      dataset.push_back(make_pair(vector<bool>{0,1,0,1,1,1},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{1,0,1,1,1,1},vector<bool>{1,0,0}));
@@ -130,14 +131,13 @@ int main(int argc, char *argv[]){
      dataset.push_back(make_pair(vector<bool>{0,0,0,0,1,1},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{1,0,1,0,0,0},vector<bool>{1,0,1}));
      dataset.push_back(make_pair(vector<bool>{1,1,1,0,1,0},vector<bool>{0,0,1}));
-     dataset.push_back(make_pair(vector<bool>{1,1,1,0,1,0},vector<bool>{1,1,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,0,1,1},vector<bool>{1,1,0}));
      dataset.push_back(make_pair(vector<bool>{1,0,0,1,1,1},vector<bool>{1,0,0}));
      dataset.push_back(make_pair(vector<bool>{0,1,0,1,1,0},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{1,0,1,1,0,0},vector<bool>{0,1,1}));
      dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
-     dataset.push_back(make_pair(vector<bool>{0,1,1,1,0,1},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,1},vector<bool>{1,1,1}));
-     dataset.push_back(make_pair(vector<bool>{1,0,1,1,1,1},vector<bool>{0,1,0}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,1,1,1},vector<bool>{0,1,0}));
      dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
      dataset.push_back(make_pair(vector<bool>{0,0,0,1,1,1},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{1,1,1,1,1,0},vector<bool>{1,1,1}));
@@ -148,13 +148,15 @@ int main(int argc, char *argv[]){
      dataset.push_back(make_pair(vector<bool>{0,0,1,0,1,0},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{0,1,1,1,1,1},vector<bool>{1,1,1}));
      dataset.push_back(make_pair(vector<bool>{0,1,1,0,0,1},vector<bool>{0,0,0}));
-     dataset.push_back(make_pair(vector<bool>{0,0,1,1,0,0},vector<bool>{0,0,0}));
-     dataset.push_back(make_pair(vector<bool>{1,0,0,1,0,0},vector<bool>{0,0,1}));
+     dataset.push_back(make_pair(vector<bool>{1,0,0,1,0,0},vector<bool>{0,1,1}));
      dataset.push_back(make_pair(vector<bool>{0,1,0,0,0,1},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{0,0,0,1,0,0},vector<bool>{0,0,0}));
+     dataset.push_back(make_pair(vector<bool>{1,0,1,1,0,1},vector<bool>{1,1,0}));
      dataset.push_back(make_pair(vector<bool>{1,0,0,0,0,0},vector<bool>{0,1,0}));
      dataset.push_back(make_pair(vector<bool>{0,1,1,0,0,0},vector<bool>{0,0,0}));
      dataset.push_back(make_pair(vector<bool>{0,0,0,0,0,0},vector<bool>{1,1,1}));
+     dataset.push_back(make_pair(vector<bool>{1,1,1,0,1,1},vector<bool>{1,1,1}));
+
 
 
 	Network network = Network(networkArgs);

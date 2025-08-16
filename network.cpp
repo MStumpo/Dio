@@ -35,24 +35,36 @@ class Network{
 
         pair<double,double> STDPUpdate(const vector<bool>& history_i, const vector<bool>& history_j) { //history_i or j must be vector<bool>s where the higher indexes are more recent
 
-            pair<double, double> total_update = make_pair(0.0,0.0); //first: i->j second j->i
 
             int size = static_cast<int>(history_i.size());
 
+            pair<double, double> total_update = make_pair(0.0,0.0); //first: i->j second j->i
+
+
             // Iterate over the spike history of the two neurons, since it's pushback t=0 is oldest and t=history_i.size() -1 is most recent
-            for (int t1 = 0; t1 < size; t1++) {
-                for (int t2 = 0; t2 < size; t2++) { 
-                    if (history_i[t1] && history_j[t2]) {
-                        double time_diff = t2 - t1;  // Calculate time difference
-                        if (time_diff > 0) {
-                            total_update.first += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t2 -1);
-                            total_update.second -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t2 -1);
-                        }
-                        else if (time_diff < 0) {
-                            total_update.first -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t1 -1);
-                            total_update.second += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t1 -1);
+            #pragma omp parallel
+            {
+                pair<double, double> local_update = make_pair(0.0, 0.0);
+                #pragma omp parallel for collapse(2)
+                for (int t1 = 0; t1 < size; t1++) {
+                    for (int t2 = 0; t2 < size; t2++) { 
+                        if (history_i[t1] && history_j[t2]) {
+                            double time_diff = t2 - t1;  // Calculate time difference
+                            if (time_diff > 0) {
+                                local_update.first += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t2 -1);
+                                local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t2 -1);
+                            }
+                            else if (time_diff < 0) {
+                                local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t1 -1);
+                                local_update.second += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t1 -1);
+                            }
                         }
                     }
+                }
+                #pragma omp critical
+                {
+                    total_update.first += local_update.first;
+                    total_update.second += local_update.second;
                 }
             }
             return total_update;
@@ -63,12 +75,12 @@ class Network{
             vector<vector<double>> corrMatrix(neurons.size(), vector<double>(neurons.size(), 0.0));
 
             // Calculate cross-correlation between each pair of neurons (i, j)
-            pair<double, double> update;
 
+            #pragma omp parallel for
             for (int i = 0; i < neurons.size(); i++) {
                 for (int j = 0; j < i; j++) {
                     if (i != j) { 
-                        update = STDPUpdate(neuronHistory[i], neuronHistory[j]);
+                        pair<double, double> update = STDPUpdate(neuronHistory[i], neuronHistory[j]);
                         corrMatrix[i][j] = update.first;
                         corrMatrix[j][i] = update.second;
                     } else {
@@ -151,26 +163,30 @@ class Network{
 
             uniform_real_distribution<double> unif(0.0,1.0);
 
-            // Vector of new states, of the size of neuron vector
-            //vector<int> newStates(neurons.size(), 0);  // Vector to store updated states
             vector<double> newStates(neurons.size(), 0.0);
 
+            #pragma omp for
             for (int i=0; i < adjMatrix.cols(); i++){
                 if(neurons[i]){
                     for(int j=0; j < adjMatrix.rows(); j++){
                         if(unif(gen) < abs(adjMatrix[i][j])){
+                            #pragma omp atomic
                             newStates[j] += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1-determinism);
                         }
+                            #pragma omp atomic
                             newStates[j] += adjMatrix[i][j]*determinism;
                     }
                 }
             }
+
+            #pragma omp parallel for
             for (int i = 0; i < newStates.size(); i++) {
                 neurons[i] = (newStates[i] >= firing_value) ? true : false;
             }
         }
 
         void train(vector<pair<vector<bool>, vector<bool>>> dataset, int epochs = 1){
+
             for (int epoch = 0; epoch < epochs; epoch++)
             {
                 clearNeuronHistory();
