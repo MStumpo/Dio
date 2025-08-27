@@ -11,7 +11,7 @@ class AdjacencyMatrix{
 	private:
 		vector<vector<double>> data;
 
-		vector<vector<double>> crossKernelMatrixEntropy(int kernelSize = 2, bool normalization = false){
+		vector<vector<double>> crossKernelMatrixEntropy(int kernelSize = 2, bool normalization = false, bool row_only = false){
 			
 			// H = - sum(p*log(p))
 		    // H_norm = H*e/(n*log(e)) where n is total analytes (2*kernel_size +2)
@@ -43,21 +43,23 @@ class AdjacencyMatrix{
 					a = (a+1)%(kernelSize*2 + 1);
 
 					//Fetching from the cols since they're always new in a colshift
-		            for(int k = 1; i+k < data.size() && k <= kernelSize; k++){
-		            	if(normalization){
-		            		entropy[i][j] += -((data[i+k][j]+1)/2)*log((data[i+k][j]+1)/2);
-		            	}else{
-		            		entropy[i][j] += -abs(data[i+k][j])*log(abs(data[i+k][j]));
-		            	}
-		            	n++;
-		            }
-		           	for(int k = 1; i-k >= 0 && k <= kernelSize; k++){
-		            	if(normalization){
-		            		entropy[i][j] += -((data[i-k][j]+1)/2)*log((data[i-k][j]+1)/2);
-		            	}else{
-		            		entropy[i][j] += -abs(data[i-k][j])*log(abs(data[i-k][j]));
-		            	}
-		            	n++;
+					if(!row_only){
+			            for(int k = 1; i+k < data.size() && k <= kernelSize; k++){
+			            	if(normalization){
+			            		entropy[i][j] += -((data[i+k][j]+1)/2)*log((data[i+k][j]+1)/2);
+			            	}else{
+			            		entropy[i][j] += -abs(data[i+k][j])*log(abs(data[i+k][j]));
+			            	}
+			            	n++;
+			            }
+			           	for(int k = 1; i-k >= 0 && k <= kernelSize; k++){
+			            	if(normalization){
+			            		entropy[i][j] += -((data[i-k][j]+1)/2)*log((data[i-k][j]+1)/2);
+			            	}else{
+			            		entropy[i][j] += -abs(data[i-k][j])*log(abs(data[i-k][j]));
+			            	}
+			            	n++;
+			            }
 		            }
 
 		            /*Going to the buffer :) note: I'm not doing if the coordinate = ij because I took it off the col loop and I want the actual value  
@@ -77,7 +79,6 @@ class AdjacencyMatrix{
 		            }
 
 		           	entropy[i][j] *= 2.718281846/(log(2.718281846) * n);
-
 				}
 
 			}
@@ -108,12 +109,11 @@ class AdjacencyMatrix{
 
 		}
 
-        void updateAdj(vector<vector<double>> crossCorrelation, double reward = 1, double lr = 0.001, double reg = 0.001, int kernelSize = 2,  bool kernelNormalization=false, double entropyFactor = 1){
+        void updateAdj(vector<vector<double>> crossCorrelation, double reward = 1, double lr = 0.001, double reg = 0.001, int kernelSize = 2,  bool kernelNormalization=false, double entropyFactor = 1, bool row_only=false){
             vector<vector<double>> entropy(data.size(), vector<double>(data[0].size(), 1));
 
-
             if (entropyFactor != 0.0){
-				entropy = crossKernelMatrixEntropy(kernelSize, kernelNormalization);
+				entropy = crossKernelMatrixEntropy(kernelSize, kernelNormalization, row_only);
 
             }
             for (int i=0; i < data.size(); i++){

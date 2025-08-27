@@ -38,9 +38,9 @@ The `neuronFiring` method of the network is responsible for taking the binary si
 
 In every timestep the current state of the neurons is stored in a `neuronHistory` object (a `vector<vector<bool>>`). It's updated via `push_back` so the larger indices represent more recent values. When updating the adjacency matrix, it's possible to calculate a $n*n$ correlation matrix from every neuron to every other in an assymetric manner based on the timing of different true values. `correlation[i][j]` represents j's correlation from i, to which is added a positive score every time j attains a true value (in timestep $t_2$) after i attains a true value (in timestep $t_1$), or a negative score when vice versa. Both scores can be calculated via:
 
-$\LARGE e^{\frac{|\Delta t|}{\tau_+}} * decay^{size - max(t_1,t_2)}$ and $\LARGE -e^{\frac{|\Delta t|}{\tau_-}} * decay^{size - max(t_1,t_2)}$ 
+$\LARGE e^{\frac{|\Delta t|}{\tau_+}} * decay^{size - max(t_1,t_2)}$ and $\LARGE -e^{\frac{|\Delta t|}{\tau_-}} * {1-decay}^{size - max(t_1,t_2)}$ 
 
-The decay value is actually wrongly named as it's a conservation value to determine how much each historic firing event is depreciated based on how old it is and to decrease overfitting in continuous updates. This formula is based on spike-dependent time plasticity as it's used in various neuromorphic models. $\tau_+$, $\tau_-$ and $decay$ can be modified via `--tau-pos`, `--tau-neg` and `--decay`.
+The decay value determines how much each historic firing event is depreciated based on how old it is and to decrease overfitting in continuous updates. This formula is based on spike-dependent time plasticity as it's used in various neuromorphic models. $\tau_+$, $\tau_-$ and $decay$ can be modified via `--tau-pos`, `--tau-neg` and `--decay`.
 
 ### Cross Kernel Matrix Entropy
 

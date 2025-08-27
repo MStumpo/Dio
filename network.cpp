@@ -26,6 +26,7 @@ class Network{
         double determinism = 0.0;
         double firing_value = 1.0;
         double entropyFactor = 1.0;
+        bool row_only = false;
         bool verbose = false;
 
         random_device rd;
@@ -38,35 +39,64 @@ class Network{
 
             int size = static_cast<int>(history_i.size());
 
-            pair<double, double> total_update = make_pair(0.0,0.0); //first: i->j second j->i
-
-
             // Iterate over the spike history of the two neurons, since it's pushback t=0 is oldest and t=history_i.size() -1 is most recent
+            vector<int> spikes_i, spikes_j;
+            for (int t = 0; t < size; t++) {
+                if (history_i[t]) spikes_i.push_back(t);
+                if (history_j[t]) spikes_j.push_back(t);
+            }
+
+            pair<double,double> total_update = {0.0, 0.0};
+
             #pragma omp parallel
             {
-                pair<double, double> local_update = make_pair(0.0, 0.0);
-                #pragma omp parallel for collapse(2)
-                for (int t1 = 0; t1 < size; t1++) {
-                    for (int t2 = 0; t2 < size; t2++) { 
-                        if (history_i[t1] && history_j[t2]) {
-                            double time_diff = t2 - t1;  // Calculate time difference
-                            if (time_diff > 0) {
-                                local_update.first += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t2 -1);
-                                local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t2 -1);
-                            }
-                            else if (time_diff < 0) {
-                                local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(decay, size - t1 -1);
-                                local_update.second += exp(-abs(time_diff) / tau_pos) * pow(decay, size - t1 -1);
-                            }
+                pair<double,double> local_update = {0.0, 0.0};
+
+                #pragma omp for
+                for (int a = 0; a < (int)spikes_i.size(); a++) {
+                    for (int b = 0; b < (int)spikes_j.size(); b++) {
+                        int t1 = spikes_i[a];
+                        int t2 = spikes_j[b];
+                        int time_diff = t2 - t1;
+                        if (time_diff > 0) {
+                            local_update.first += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t2 -1);
+                            local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t2 -1);
+                        }
+                        else if (time_diff < 0) {
+                            local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t1 -1);
+                            local_update.second += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t1 -1);
                         }
                     }
                 }
+
                 #pragma omp critical
                 {
-                    total_update.first += local_update.first;
+                    total_update.first  += local_update.first;
                     total_update.second += local_update.second;
                 }
             }
+            /*
+            double total1 = 0.0;
+            double total2 = 0.0;
+            #pragma omp parallel for collapse(2) reduction(+:total1,total2)
+            for (int t1 = 0; t1 < size; t1++) {
+                for (int t2 = 0; t2 < size; t2++) { 
+                    if (history_i[t1] && history_j[t2]) {
+                        double time_diff = t2 - t1;  // Calculate time difference
+                        if (time_diff > 0) {
+                            total1 += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t2 -1);
+                            total2 -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t2 -1);
+                        }
+                        else if (time_diff < 0) {
+                            total1 -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t1 -1);
+                            total2 += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t1 -1);
+                        }
+                    }
+                }
+            }
+
+            pair<double, double> total_update = make_pair(total1,total2); //first: i->j second j->i */
+
             return total_update;
         }
 
@@ -152,9 +182,12 @@ class Network{
                 else if(pair.first == "--entropy-factor"){
                     this->entropyFactor = get<double>(pair.second); 
                     printf("\nentropy-factor: %f", this->entropyFactor);
+                }else if(pair.first == "--row-only"){
+                    this->row_only = get<bool>(pair.second); 
+                    printf("\nentropy-row-only: %d", this->row_only);
                 }else if(pair.first == "--verbose"){
                     this->verbose = get<bool>(pair.second); 
-                    printf("\nentropy-factor: %d", this->verbose);
+                    printf("\nVerbose: %d", this->verbose);
                 }
             }
         }
@@ -189,6 +222,7 @@ class Network{
 
             for (int epoch = 0; epoch < epochs; epoch++)
             {
+                if(verbose) printf("\n Epoch %d", epoch);
                 clearNeuronHistory();
                 for(const auto& datapoint : dataset){
                     for(int timestep = 0; timestep < timeWindow; timestep++){
@@ -200,7 +234,7 @@ class Network{
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
                         storeNeuronStates(neurons);
-                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor);
+                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, row_only);
                     }
                 }
             }
