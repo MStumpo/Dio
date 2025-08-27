@@ -68,7 +68,7 @@ int main(int argc, char *argv[]){
                         networkArgs[j].second = stod(argv[i+1]);
                         i++;
                     }else if constexpr (is_same_v<T, bool>){
-                        networkArgs[j].second = (argv[i+1] == "true" || argv[i+1] == "1");
+                        networkArgs[j].second = (string(argv[i+1]) == "true" || string(argv[i+1]) == "1");
                         i++;
                     }
                 }, networkArgs[j].second);
@@ -160,12 +160,26 @@ int main(int argc, char *argv[]){
 
 
 
+
 	Network network = Network(networkArgs);
 
 	network.train(dataset,train_epochs);	
 
-    
     network.printAdjMatrix();
+
+    //Adding 5 new XOR inputs for it to test
+    for(int i = 0; i < 5; i++){
+        vector<bool> input = {false};
+        vector<bool> input2 = randomBinarySequence(5);
+        vector<bool> output;
+        if(!input[0]){
+            output = vector<bool>(3, XNOR(input2));
+        }else{
+            output = randomBinarySequence(3);
+        }
+        input.insert(input.end(),input2.begin(),input2.end());
+        dataset.push_back(make_pair(input, output));
+    }
 
 	network.test(dataset, test_epochs);
 

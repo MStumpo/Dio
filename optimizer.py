@@ -6,7 +6,7 @@ from plotly.io import show
 def run_network(trial):
 	result = subprocess.run("./main --neuronSize {neuronSize} --timeWindow {timeWindow} --lr {lr} --reg {reg} --tau-pos {tpos} --tau-neg {tneg} --decay {decay} \
 		--entropy-factor {entrp_factor} --kernel-size {k_size} --kernel-normalization {k_norm} --epochs {train_epochs} --test-epochs {test_epochs} \
-		--determinism {determinism} --firing-value {firing_val}".format(
+		--determinism {determinism} --firing-value {firing_val} --row-only true".format(
 			neuronSize = str(trial.suggest_int("neuronSize", 10,100)),
 			timeWindow = str(trial.suggest_int("timeWindow", 2, 10)),
 			lr = str(trial.suggest_float("lr", 0.000000001,1.0, log=True)),
