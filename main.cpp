@@ -49,9 +49,9 @@ int main(int argc, char *argv[]){
     using Args = variant<int, double, bool>;
 
     vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--lr", 0.001}, {"--reg", 0.001}, {"--tau-pos", 1.0},
-                                                 {"--tau-neg", 2.0}, {"--decay",0.95}, {"--entropy-factor", 1.0}, {"--kernel-size", 2},
-                                                  {"--kernel-normalization", false}, {"--determinism", 0.0}, {"--firing-value", 1.0}, {"--verbose", false},
-                                                  {"--row-only", false}};
+                                                 {"--tau-neg", 2.0}, {"--decay",0.95}, {"--entropy-factor", 1.0}, {"--kernel-size", 2}, {"--col-only", false},
+                                                  {"--kernel-normalization", false}, {"--determinism", 0.0}, {"--firing-value", 1.0},{"--null-window", 10}, {"--verbose", false},
+                                                   };
 
 
     int train_epochs = 1;
@@ -183,12 +183,12 @@ int main(int argc, char *argv[]){
 
 	network.test(dataset, test_epochs);
 
-    /*
+    
     for(auto& datum : dataset){
         network.validate(datum.first,datum.second, 10);
-    }*/
-    //network.validate(dataset[0].first,dataset[0].second, 10);
-    //network.validate(dataset[3].first,dataset[3].second, 10);
+    }
+    network.validate(dataset[0].first,dataset[0].second, 10);
+    network.validate(dataset[3].first,dataset[3].second, 10);
 
 
 

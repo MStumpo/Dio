@@ -11,7 +11,7 @@ class AdjacencyMatrix{
 	private:
 		vector<vector<double>> data;
 
-		vector<vector<double>> crossKernelMatrixEntropy(int kernelSize = 2, bool normalization = false, bool row_only = false){
+		vector<vector<double>> crossKernelMatrixEntropy(int kernelSize = 2, bool normalization = false, bool col_only = false){
 			
 			// H = - sum(p*log(p))
 		    // H_norm = H*e/(n*log(e)) where n is total analytes (2*kernel_size +2)
@@ -19,32 +19,30 @@ class AdjacencyMatrix{
 		    //since our ps are [-1,1] we can do either (p+1)/2 normalization or sum(|p|*log(|p|))
 		    //these two strats can be switched around via the normalization bool
 
-		    vector<vector<double>> entropy(data.size(), vector<double>(data[0].size(), 0.0));
-			double *row_buffer[kernelSize*2 +1];
+			size_t size = data.size(); //Assuming square matrix
+		    vector<vector<double>> entropy(size, vector<double>(size, 0.0));
 			int a = 0;
-			for(int i =0; i < data.size(); i++){
 
-				//column shift and row reset because we're on the other side of the matrix now
-				for(int x = 0; x < kernelSize*2 +1; x++){
-					row_buffer[x] = (x < kernelSize) ? &data[i][x] : NULL;
-				}
-				a = kernelSize;
-
-				for(int j = 0; j < data[i].size(); j++){
-
-					int n = 0;
-
-					//condition to prevent out of bounds attributing: stops at edge of matrix
-					if(j+kernelSize < data[i].size()){
-						row_buffer[a] = &data[i][j+kernelSize];
-					}else{
-						row_buffer[a] = NULL; 
+			if(!col_only){
+				double *row_buffer[kernelSize*2 +1];
+				for(int i =0; i < size; i++){
+					//column shift and row reset because we're on the other side of the matrix now
+					for(int x = 0; x < kernelSize*2 +1; x++){
+						row_buffer[x] = (x < kernelSize) ? &data[i][x] : NULL;
 					}
-					a = (a+1)%(kernelSize*2 + 1);
+					a = kernelSize;
+					for(int j = 0; j < size; j++){
+						int n = 0;
+						//condition to prevent out of bounds attributing: stops at edge of matrix
+						if(j+kernelSize < size){
+							row_buffer[a] = &data[i][j+kernelSize];
+						}else{
+							row_buffer[a] = NULL; 
+						}
+						a = (a+1)%(kernelSize*2 + 1);
 
-					//Fetching from the cols since they're always new in a colshift
-					if(!row_only){
-			            for(int k = 1; i+k < data.size() && k <= kernelSize; k++){
+						//Fetching from the cols since they're always new in a colshift
+			            for(int k = 1; i+k < size && k <= kernelSize; k++){
 			            	if(normalization){
 			            		entropy[i][j] += -((data[i+k][j]+1)/2)*log((data[i+k][j]+1)/2);
 			            	}else{
@@ -59,29 +57,59 @@ class AdjacencyMatrix{
 			            		entropy[i][j] += -abs(data[i-k][j])*log(abs(data[i-k][j]));
 			            	}
 			            	n++;
+			            
 			            }
-		            }
 
-		            /*Going to the buffer :) note: I'm not doing if the coordinate = ij because I took it off the col loop and I want the actual value  
-		            * to be included in the entropy calculation and it's already in the buffer
-		            */
-		            for(auto& buffer : row_buffer){
+			            /*Going to the buffer :) note: I'm not doing if the coordinate = ij because I took it off the col loop and I want the actual value  
+			            * to be included in the entropy calculation and it's already in the buffer
+			            */
+			            for(auto& buffer : row_buffer){
+			            	if(buffer != NULL){
+			            		double val = *buffer;
+				            	if(normalization && val != -1){
+				                    entropy[i][j] += -((val+1)/2)*log((val+1)/2);
+				                }else if(!normalization && val != 0) {
+				                    entropy[i][j] += -abs(val)*log(abs(val));
+				                }
+				                n++;
+			            	}
+			            }
 
-		            	if(buffer != NULL){
-		            		double val = *buffer;
-			            	if(normalization && val != -1){
-			                    entropy[i][j] += -((val+1)/2)*log((val+1)/2);
-			                }else if(!normalization && val != 0) {
-			                    entropy[i][j] += -abs(val)*log(abs(val));
-			                }
-			                n++;
-		            	}
-		            }
-
-		           	entropy[i][j] *= 2.718281846/(log(2.718281846) * n);
+			           	entropy[i][j] *= 2.718281846/(log(2.718281846) * n);
+					}
 				}
-
-			}
+				}else{//If we use a column only buffer it's the same logic and read the other way
+					
+					double *col_buffer[kernelSize*2+1];
+					for(int j = 0; j < size; j++){
+						for(int x = 0; x < kernelSize*2 +1; x++){
+								col_buffer[x] = (x < kernelSize) ? &data[x][j] : NULL;
+						}
+						a = kernelSize;
+						for(int i = 0; i < size; i++){
+							int n = 0;
+							//condition to prevent out of bounds attributing: stops at edge of matrix
+							if(i+kernelSize < size){
+								col_buffer[a] = &data[i+kernelSize][j];
+							}else{
+								col_buffer[a] = NULL; 
+							}
+							a = (a+1)%(kernelSize*2 + 1);
+							for(auto& buffer : col_buffer){
+				            	if(buffer != NULL){
+				            		double val = *buffer;
+					            	if(normalization && val != -1){
+					                    entropy[i][j] += -((val+1)/2)*log((val+1)/2);
+					                }else if(!normalization && val != 0) {
+					                    entropy[i][j] += -abs(val)*log(abs(val));
+					                }
+					                n++;
+				            	}
+			            	}
+			            	entropy[i][j] *= 2.718281846/(log(2.718281846) * n);
+						}
+					}
+				}
 			return entropy;
 		}
 

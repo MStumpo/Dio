@@ -18,6 +18,7 @@ class Network{
         double lr = 0.001;
         double reg  =0.0001;
         int timeWindow = 10;
+        int null_window = 10;
         double tau_pos = 2;
         double tau_neg = 1;
         double decay = 0.99;
@@ -26,7 +27,7 @@ class Network{
         double determinism = 0.0;
         double firing_value = 1.0;
         double entropyFactor = 1.0;
-        bool row_only = false;
+        bool col_only = false;
         bool verbose = false;
 
         random_device rd;
@@ -182,12 +183,18 @@ class Network{
                 else if(pair.first == "--entropy-factor"){
                     this->entropyFactor = get<double>(pair.second); 
                     printf("\nentropy-factor: %f", this->entropyFactor);
-                }else if(pair.first == "--row-only"){
-                    this->row_only = get<bool>(pair.second); 
-                    printf("\nentropy-row-only: %d", this->row_only);
-                }else if(pair.first == "--verbose"){
+                }
+                else if(pair.first == "--col-only"){
+                    this->col_only = get<bool>(pair.second); 
+                    printf("\nentropy-col-only: %d", this->col_only);
+                }
+                else if(pair.first == "--verbose"){
                     this->verbose = get<bool>(pair.second); 
                     printf("\nVerbose: %d", this->verbose);
+                }
+                else if(pair.first == "--null-window"){
+                    this->null_window = get<int>(pair.second);
+                    printf("\nnull_window: %d", this->null_window);
                 }
             }
         }
@@ -198,16 +205,19 @@ class Network{
 
             vector<double> newStates(neurons.size(), 0.0);
 
-            #pragma omp for
+            #pragma omp parallel for
             for (int i=0; i < adjMatrix.cols(); i++){
                 if(neurons[i]){
                     for(int j=0; j < adjMatrix.rows(); j++){
+                        double add = 0.0;
                         if(unif(gen) < abs(adjMatrix[i][j])){
-                            #pragma omp atomic
-                            newStates[j] += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1-determinism);
+                            add += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1-determinism);
                         }
+                        add += adjMatrix[i][j]*determinism;
+                        if(add != 0.0){
                             #pragma omp atomic
-                            newStates[j] += adjMatrix[i][j]*determinism;
+                            newStates[j] += add;
+                        }
                     }
                 }
             }
@@ -225,6 +235,7 @@ class Network{
                 if(verbose) printf("\n Epoch %d", epoch);
                 clearNeuronHistory();
                 for(const auto& datapoint : dataset){
+                    for(int timestep = 0; timestep < null_window; timestep ++) neuronFiring();
                     for(int timestep = 0; timestep < timeWindow; timestep++){
                         for(int i = 0; i < datapoint.first.size(); i++){
                             neurons[i] = datapoint.first[i];
@@ -234,7 +245,7 @@ class Network{
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
                         storeNeuronStates(neurons);
-                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, row_only);
+                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, col_only);
                     }
                 }
             }
@@ -246,6 +257,7 @@ class Network{
             {
                 score = 0;
                 for(const auto& datapoint : dataset){
+                    for(int timestep = 0; timestep < null_window; timestep ++) neuronFiring();
                     for(int timestep = 0; timestep < timeWindow; timestep++){
                         for(int i = 0; i < datapoint.first.size(); i++){
                             neurons[i] = datapoint.first[i];
@@ -253,9 +265,9 @@ class Network{
                         neuronFiring();
                         for(int i = 0; i < datapoint.second.size(); i++){
                             if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
-                                score += 1/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                score += 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
                             }else{
-                                score -= 1/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                score -= 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
                             }
                         }
                     }
