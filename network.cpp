@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <variant>
 #include <stdexcept>
+#include <omp.h>
 #include "adjMatrix.cpp"
 using namespace std;
 
@@ -30,8 +31,6 @@ class Network{
         bool col_only = false;
         bool verbose = false;
 
-        random_device rd;
-        mt19937 gen;
         //uniform_real_distribution<double> unif;
 
 
@@ -134,7 +133,7 @@ class Network{
         //Network(int neuronSize, int timeWindow = 10, double lr = 0.001, double reg=0.001, double tau_pos=2.0, double tau_neg = 1.0, double decay = 0.95,
         // , int kernel_size=2, bool kernelNormalization=false) : adjMatrix(neuronSize){
 
-        Network(vector<pair<string, variant<int, double, bool>>> networkArgs) : adjMatrix(get<int>(networkArgs[0].second)), gen(rd()){
+        Network(vector<pair<string, variant<int, double, bool>>> networkArgs) : adjMatrix(get<int>(networkArgs[0].second)){
 
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
@@ -201,6 +200,8 @@ class Network{
 
         void neuronFiring(){
 
+            mt19937 gen(random_device{}() + omp_get_thread_num());
+
             uniform_real_distribution<double> unif(0.0,1.0);
 
             vector<double> newStates(neurons.size(), 0.0);
@@ -232,10 +233,13 @@ class Network{
 
             for (int epoch = 0; epoch < epochs; epoch++)
             {
-                if(verbose) printf("\n Epoch %d", epoch);
+                if(verbose) printf("\n Epoch %d", epoch+1);
                 clearNeuronHistory();
                 for(const auto& datapoint : dataset){
-                    for(int timestep = 0; timestep < null_window; timestep ++) neuronFiring();
+                    for(int timestep = 0; timestep < null_window; timestep ++){
+                        neuronFiring();
+                        storeNeuronStates(neurons);
+                    }
                     for(int timestep = 0; timestep < timeWindow; timestep++){
                         for(int i = 0; i < datapoint.first.size(); i++){
                             neurons[i] = datapoint.first[i];
@@ -272,7 +276,7 @@ class Network{
                         }
                     }
                 }
-                printf("\nEPOCH %d, score: %f", epoch, score);
+                printf("\nEPOCH %d, score: %f", epoch+1, score);
             }
             printf("\n");
 
