@@ -98,7 +98,7 @@ int main(int argc, char *argv[]){
 	network.test(dataset_test, test_epochs);
     
     for(auto& datum : dataset_test){
-        network.validate(datum.first,datum.second, 10);
+        network.validate(datum.first,datum.second);
     }
 
 	return 0;

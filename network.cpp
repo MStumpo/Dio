@@ -282,8 +282,11 @@ class Network{
 
         }
 
-        void validate(vector<bool> sample, vector<bool> target, int iterations = 1){
+        void validate(vector<bool> sample, vector<bool> target, int iterations = NULL){
 
+            if(iterations == NULL){
+                iterations = timeWindow;
+            }
             for(int t = 0; t < iterations; t++){
                 for(int i = 0; i < sample.size(); i++){
                     neurons[i] = sample[i];
