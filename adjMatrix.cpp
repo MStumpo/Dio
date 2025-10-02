@@ -137,23 +137,22 @@ class AdjacencyMatrix{
 
 		}
 
-        void updateAdj(vector<vector<double>> crossCorrelation, double reward = 1, double lr = 0.001, double reg = 0.001, int kernelSize = 2,  bool kernelNormalization=false, double entropyFactor = 1, bool row_only=false){
+        void updateAdj(const vector<bool> spikes,const vector<double> tracePre, const vector<double> tracePost, double reward = 1, double reg = 0.001,
+         int kernelSize = 2,  bool kernelNormalization=false, 
+        	double entropyFactor = 1, bool col_only=false,
+        	double pos_lr = 0.001, double neg_lr = 0.001){
             vector<vector<double>> entropy(data.size(), vector<double>(data[0].size(), 1));
 
             if (entropyFactor != 0.0){
-				entropy = crossKernelMatrixEntropy(kernelSize, kernelNormalization, row_only);
-
+				entropy = crossKernelMatrixEntropy(kernelSize, kernelNormalization, col_only);
             }
-            for (int i=0; i < data.size(); i++){
-                for(int j=0; j < data[i].size(); j++){
 
-                    data[i][j] += lr*crossCorrelation[i][j]*reward*pow(entropy[i][j],entropyFactor) - reg*data[i][j];
+            for(int i = 0; i < data.size(); i++){
+            		for(int j=0; j < data[i].size(); j++){
+            			data[i][j] += pow(entropy[i][j],entropyFactor)*(pos_lr*tracePre[i]*spikes[j] - neg_lr*tracePost[j]*spikes[i]) - reg*data[i][j];
+            			data[i][j] = max(-1.0,min(1.0,data[i][j]));
 
-                    data[i][j] =  max(-1.0, min(1.0, data[i][j]));  // Clip
-
-                    //printf("[%d][%d], cross_corr: %f, entropy: %f, data: %f\n", i,j,crossCorrelation[i][j],entropy[i][j],data[i][j]);
-
-                }
+            	}
             }
         }
 	

@@ -33,13 +33,12 @@ int main(int argc, char *argv[]){
 
     using Args = variant<int, double, bool>;
 
-    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--lr", 0.001}, {"--reg", 0.001}, {"--tau-pos", 1.0},
-                                                 {"--tau-neg", 2.0}, {"--decay",0.95}, {"--entropy-factor", 1.0}, {"--kernel-size", 2}, {"--col-only", false},
-                                                  {"--kernel-normalization", false}, {"--determinism", 0.0}, {"--firing-value", 1.0},{"--null-window", 10}, {"--verbose", false},
+    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--pos-lr", 1.0},
+                                                 {"-neg-lr", 1.0}, {"--decayPre",0.05},{"--decayPost", 0.05}, {"--entropy-factor", 1.0}, {"--kernel-size", 2}, {"--col-only", false},
+                                                  {"--kernel-normalization", false}, {"--determinism", 0.0},{"--firing-value", 1.0},{"--null-window", 10}, {"--verbose", false},
                                                    };
 
-    int train_epochs = 1;
-    int test_epochs  =1;
+    int epochs = 1;
     vector<pair<vector<bool>, vector<bool>>> dataset;
     vector<pair<vector<bool>, vector<bool>>> dataset_test;
 
@@ -63,14 +62,8 @@ int main(int argc, char *argv[]){
             }
         }
         if(string(argv[i]) == "--train-epochs" || string(argv[i]) == "--epochs"){
-            train_epochs = stoi(argv[i+1]);
-            printf("\ntrain_epochs: %d", train_epochs);
-
-            i++;
-        }else if (string(argv[i]) == "--test-epochs"){
-            test_epochs = stoi(argv[i+1]);
-
-            printf("\ntest_epochs: %d", test_epochs);
+            epochs = stoi(argv[i+1]);
+            printf("\ntrain_epochs: %d", epochs);
 
             i++;
         }else if (string(argv[i]) == "--dataset"){
@@ -89,9 +82,9 @@ int main(int argc, char *argv[]){
 
 	Network network = Network(networkArgs);
 
-    network.runFull(dataset, dataset_test, 100);
+    network.runFull(dataset, dataset_test, epochs);
 
-    network.printAdjMatrix();
+    //network.printAdjMatrix();
 
 	return 0;
 }

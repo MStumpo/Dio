@@ -13,16 +13,17 @@ using namespace std;
 class Network{
 
     private:
-        vector<vector<bool>> neuronHistory;
         vector<bool> neurons;
+        vector<double> tracePre;
+        vector<double> tracePost;
+
         AdjacencyMatrix adjMatrix;
         double lr = 0.001;
         double reg  =0.0001;
         int timeWindow = 10;
         int null_window = 10;
-        double tau_pos = 2;
-        double tau_neg = 1;
-        double decay = 0.99;
+        double decayPre = 0.01;
+        double decayPost = 0.01;
         int kernel_size = 2;
         bool kernelNormalization = false;
         double determinism = 0.0;
@@ -30,96 +31,24 @@ class Network{
         double entropyFactor = 1.0;
         bool col_only = false;
         bool verbose = false;
+        double pos_lr = 0.0001;
+        double neg_lr = 0.00001;
 
         //uniform_real_distribution<double> unif;
 
+        void updateTrace(const vector<bool> spikes, bool pre=true){
 
-        pair<double,double> STDPUpdate(const vector<bool>& history_i, const vector<bool>& history_j) { //history_i or j must be vector<bool>s where the higher indexes are more recent
-
-            int size = static_cast<int>(history_i.size());
-
-            // Iterate over the spike history of the two neurons, since it's pushback t=0 is oldest and t=history_i.size() -1 is most recent
-            vector<int> spikes_i, spikes_j;
-            for (int t = 0; t < size; t++) {
-                if (history_i[t]) spikes_i.push_back(t);
-                if (history_j[t]) spikes_j.push_back(t);
-            }
-
-            pair<double,double> total_update = {0.0, 0.0};
-
-            #pragma omp parallel
-            {
-                pair<double,double> local_update = {0.0, 0.0};
-
-                #pragma omp for
-                for (int a = 0; a < (int)spikes_i.size(); a++) {
-                    for (int b = 0; b < (int)spikes_j.size(); b++) {
-                        int t1 = spikes_i[a];
-                        int t2 = spikes_j[b];
-                        int time_diff = t2 - t1;
-                        if (time_diff > 0) {
-                            local_update.first += exp(-abs(time_diff) / tau_pos) * pow(1.0-decay, size - t2 -1.0);
-                            local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(1.0-decay, size - t2 -1.0);
-                        }
-                        else if (time_diff < 0) {
-                            local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(1.0-decay, size - t1 -1.0);
-                            local_update.second += exp(-abs(time_diff) / tau_pos) * pow(1.0-decay, size - t1 -1.0);
-                        }
-                    }
+            if(pre){
+                for(int i = 0; i < spikes.size(); i++){
+                    tracePre[i] = (1.0-decayPre)*tracePre[i] + (spikes[i] ? 1.0 : 0.0);
+                    tracePost[i] *= (1.0-decayPost);
                 }
-
-                #pragma omp critical
-                {
-                    total_update.first  += local_update.first;
-                    total_update.second += local_update.second;
+            }else{
+                for(int i = 0; i < spikes.size(); i++){
+                    tracePost[i] += (spikes[i] ? 1.0 : 0.0);
                 }
             }
-            /*
-            double total1 = 0.0;
-            double total2 = 0.0;
-            #pragma omp parallel for collapse(2) reduction(+:total1,total2)
-            for (int t1 = 0; t1 < size; t1++) {
-                for (int t2 = 0; t2 < size; t2++) { 
-                    if (history_i[t1] && history_j[t2]) {
-                        double time_diff = t2 - t1;  // Calculate time difference
-                        if (time_diff > 0) {
-                            total1 += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t2 -1);
-                            total2 -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t2 -1);
-                        }
-                        else if (time_diff < 0) {
-                            total1 -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t1 -1);
-                            total2 += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t1 -1);
-                        }
-                    }
-                }
-            }
-
-            pair<double, double> total_update = make_pair(total1,total2); //first: i->j second j->i */
-
-            return total_update;
         }
-
-        vector<vector<double>> getCorrelationMatrix() {
-
-            vector<vector<double>> corrMatrix(neurons.size(), vector<double>(neurons.size(), 0.0));
-
-            // Calculate cross-correlation between each pair of neurons (i, j)
-
-            #pragma omp parallel for
-            for (int i = 0; i < neurons.size(); i++) {
-                for (int j = 0; j < i; j++) {
-                    if (i != j) { 
-                        pair<double, double> update = STDPUpdate(neuronHistory[i], neuronHistory[j]);
-                        corrMatrix[i][j] = update.first;
-                        corrMatrix[j][i] = update.second;
-                    } else {
-                        corrMatrix[i][j] = 1.0;
-                    }
-                }
-            }
-            return corrMatrix;
-        }
-
 
     public:
 
@@ -129,15 +58,13 @@ class Network{
 
         size_t size() const { return neurons.size(); }
 
-        //Network(int neuronSize, int timeWindow = 10, double lr = 0.001, double reg=0.001, double tau_pos=2.0, double tau_neg = 1.0, double decay = 0.95,
-        // , int kernel_size=2, bool kernelNormalization=false) : adjMatrix(neuronSize){
-
         Network(vector<pair<string, variant<int, double, bool>>> networkArgs) : adjMatrix(get<int>(networkArgs[0].second)){
 
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
                     neurons.assign(get<int>(pair.second), false);
-                    neuronHistory = vector<vector<bool>>(get<int>(pair.second));
+                    tracePre = vector<double>(get<int>(pair.second), 0.0);
+                    tracePost = vector<double>(get<int>(pair.second), 0.0);
                     printf("\nneurons : %d", get<int>(pair.second));
                 }else if(pair.first == "--time-window"){
                     this->timeWindow = get<int>(pair.second);
@@ -150,17 +77,21 @@ class Network{
                     this->reg = get<double>(pair.second);
                     printf("\nreg: %f", this->reg);
                 }
-                else if(pair.first == "--tau-pos"){
-                    this->tau_pos = get<double>(pair.second);
-                    printf("\ntau_pos: %f", this->tau_pos);
+                else if(pair.first =="--decayPre"){
+                    this->decayPre = get<double>(pair.second);
+                    printf("\ndecay: %f", this->decayPre);
                 }
-                else if(pair.first =="--tau-neg"){
-                    this->tau_neg = get<double>(pair.second);
-                    printf("\ntau_neg: %f", this->tau_neg);
-                } 
-                else if(pair.first =="--decay"){
-                    this->decay = get<double>(pair.second);
-                    printf("\ndecay: %f", this->decay);
+                else if(pair.first =="--decayPost"){
+                    this->decayPost = get<double>(pair.second);
+                    printf("\ndecay: %f", this->decayPre);
+                }
+                else if(pair.first == "--pos-amplitude"){
+                    this->pos_lr = get<double>(pair.second); 
+                    printf("\npos-amplitude: %f", this->pos_lr);
+                }
+                else if(pair.first == "--neg-amplitude"){
+                    this->neg_lr = get<double>(pair.second); 
+                    printf("\nneg_lr: %f", this->neg_lr);
                 }
                 else if(pair.first == "--kernel-size"){
                     this->kernel_size = get<int>(pair.second);
@@ -230,12 +161,16 @@ class Network{
 
         void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true){
             
+
+            int score = 0;
+            int scoreC = 0;
             for(int epoch = 0; epoch < epochs; epoch++){
                 if(ds_shuffle){
                     mt19937 g(random_device{}());
                     shuffle(dataset.begin(), dataset.end(), g);
                     shuffle(dataset_test.begin(), dataset_test.end(), g);
                 }
+
                 for(const auto& datapoint:dataset){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
                         if(timestep >= null_window){
@@ -255,16 +190,18 @@ class Network{
                             }
                         }
                         if(timestep < null_window){
-                            printf("    Epoch %d, null\n", epoch);
+                            printf("    Epoch %d, null", epoch);
                         }else{
-                            printf("    Epoch %d, training\n", epoch);
+                            printf("    Epoch %d, training", epoch);
                         }
+                        printf(" score: %f \n", (double)score/scoreC);
+                        updateTrace(neurons, true);
                         neuronFiring();
-                        storeNeuronStates(neurons);
-                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, col_only);
+                        updateTrace(neurons, false);
+                        adjMatrix.updateAdj(neurons, tracePre, tracePost,1, reg, kernel_size, kernelNormalization, entropyFactor, col_only, pos_lr, neg_lr);
                     }
                 }
-                double score = 0;
+
                 for(const auto& datapoint:dataset_test){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
                         if(timestep >= null_window){
@@ -273,14 +210,14 @@ class Network{
                             }
                         }
                         neuronFiring();
-                        storeNeuronStates(neurons);
                         if(timestep >= null_window){
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
-                                    score += 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                    score ++;
                                 }else{
-                                    score -= 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                    score --;
                                 }
+                                scoreC++;
                             }
                         }
                         for(int b = 0; b < neurons.size(); b++){
@@ -294,10 +231,12 @@ class Network{
                         if(timestep < null_window){
                             printf("    Epoch %d, null\n", epoch);
                         }else{
-                            printf("    Epoch %d, testing, %f (", epoch, score);
+                            printf("    Epoch %d, testing, (", epoch);
                             for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
-                            printf(")\n");
+                            printf(")");
                         }
+                        printf(" score: %f\n", (double)score/scoreC);
+
                     }
                 }
             }
@@ -310,11 +249,9 @@ class Network{
             for (int epoch = 0; epoch < epochs; epoch++)
             {
                 if(verbose) printf("\n Epoch %d", epoch+1);
-                clearNeuronHistory();
                 for(const auto& datapoint : dataset){
                     for(int timestep = 0; timestep < null_window; timestep ++){
                         neuronFiring();
-                        storeNeuronStates(neurons);
                     }
                     for(int timestep = 0; timestep < timeWindow; timestep++){
                         for(int i = 0; i < datapoint.first.size(); i++){
@@ -327,8 +264,7 @@ class Network{
                         for(int i = 0; i < datapoint.second.size(); i++){
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
-                        storeNeuronStates(neurons);
-                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, col_only);
+                        adjMatrix.updateAdj(neurons, tracePre, tracePost,1, reg, kernel_size, kernelNormalization, entropyFactor, col_only, pos_lr, neg_lr);
                     }
                 }
             }
@@ -381,18 +317,6 @@ class Network{
                 printf("%d", target[i] ? true : false);
             }
             printf("\n");
-        }
-
-        void storeNeuronStates(const vector<bool> newStates, const double significanceMin = 0.000001, const double significanceMax = 0.01) {
-            for(int i = 0; i < neuronHistory.size(); i++){
-                neuronHistory[i].push_back(newStates[i]);
-            }
-            if(neuronHistory.size() > log(significanceMin)/log(1.0-decay)){
-                neuronHistory.erase(neuronHistory.begin(), neuronHistory.begin() + (neuronHistory.size() - (int)neuronHistory.size() > log(significanceMax)/log(1.0-decay)));
-            }
-        }
-        void clearNeuronHistory(){
-            neuronHistory = vector<vector<bool>>(neurons.size());
         }
         void printAdjMatrix(int width=1, int decimals=2) {
             printf("\n");
