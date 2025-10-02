@@ -36,7 +36,6 @@ class Network{
 
         pair<double,double> STDPUpdate(const vector<bool>& history_i, const vector<bool>& history_j) { //history_i or j must be vector<bool>s where the higher indexes are more recent
 
-
             int size = static_cast<int>(history_i.size());
 
             // Iterate over the spike history of the two neurons, since it's pushback t=0 is oldest and t=history_i.size() -1 is most recent
@@ -59,12 +58,12 @@ class Network{
                         int t2 = spikes_j[b];
                         int time_diff = t2 - t1;
                         if (time_diff > 0) {
-                            local_update.first += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t2 -1);
-                            local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t2 -1);
+                            local_update.first += exp(-abs(time_diff) / tau_pos) * pow(1.0-decay, size - t2 -1.0);
+                            local_update.second -= exp(-abs(time_diff) / tau_neg) * pow(1.0-decay, size - t2 -1.0);
                         }
                         else if (time_diff < 0) {
-                            local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(1-decay, size - t1 -1);
-                            local_update.second += exp(-abs(time_diff) / tau_pos) * pow(1-decay, size - t1 -1);
+                            local_update.first -= exp(-abs(time_diff) / tau_neg) * pow(1.0-decay, size - t1 -1.0);
+                            local_update.second += exp(-abs(time_diff) / tau_pos) * pow(1.0-decay, size - t1 -1.0);
                         }
                     }
                 }
@@ -212,7 +211,7 @@ class Network{
                     for(int j=0; j < adjMatrix.rows(); j++){
                         double add = 0.0;
                         if(unif(gen) < abs(adjMatrix[i][j])){
-                            add += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1-determinism);
+                            add += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1.0-determinism);
                         }
                         add += adjMatrix[i][j]*determinism;
                         if(add != 0.0){
@@ -228,6 +227,83 @@ class Network{
                 neurons[i] = (newStates[i] >= firing_value) ? true : false;
             }
         }
+
+        void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true){
+            
+            for(int epoch = 0; epoch < epochs; epoch++){
+                if(ds_shuffle){
+                    mt19937 g(random_device{}());
+                    shuffle(dataset.begin(), dataset.end(), g);
+                    shuffle(dataset_test.begin(), dataset_test.end(), g);
+                }
+                for(const auto& datapoint:dataset){
+                    for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
+                        if(timestep >= null_window){
+                            for(int i = 0; i < datapoint.first.size(); i++){
+                                neurons[i] = datapoint.first[i];
+                            }
+                            for(int i = 0; i < datapoint.second.size(); i++){
+                                neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+                            }
+                        }
+                        for(int b = 0; b < neurons.size(); b++){
+                            printf("%d", neurons[b] ? true : false);
+                            if(b == datapoint.first.size()-1){
+                                printf("|");
+                            }else if(b == neurons.size() - datapoint.second.size()-1){
+                                printf("|");
+                            }
+                        }
+                        if(timestep < null_window){
+                            printf("    Epoch %d, null\n", epoch);
+                        }else{
+                            printf("    Epoch %d, training\n", epoch);
+                        }
+                        neuronFiring();
+                        storeNeuronStates(neurons);
+                        adjMatrix.updateAdj(getCorrelationMatrix(),1, lr, reg, kernel_size, kernelNormalization, entropyFactor, col_only);
+                    }
+                }
+                double score = 0;
+                for(const auto& datapoint:dataset_test){
+                    for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
+                        if(timestep >= null_window){
+                            for(int i = 0; i < datapoint.first.size(); i++){
+                                neurons[i] = datapoint.first[i];
+                            }
+                        }
+                        neuronFiring();
+                        storeNeuronStates(neurons);
+                        if(timestep >= null_window){
+                            for(int i = 0; i < datapoint.second.size(); i++){
+                                if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
+                                    score += 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                }else{
+                                    score -= 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
+                                }
+                            }
+                        }
+                        for(int b = 0; b < neurons.size(); b++){
+                            printf("%d", neurons[b] ? true : false);
+                            if(b == datapoint.first.size()-1){
+                                printf("|");
+                            }else if(b == neurons.size() - datapoint.second.size()-1){
+                                printf("|");
+                            }
+                        }
+                        if(timestep < null_window){
+                            printf("    Epoch %d, null\n", epoch);
+                        }else{
+                            printf("    Epoch %d, testing, %f (", epoch, score);
+                            for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
+                            printf(")\n");
+                        }
+                    }
+                }
+            }
+
+            }
+
 
         void train(vector<pair<vector<bool>, vector<bool>>> dataset, int epochs = 1){
 
@@ -245,6 +321,9 @@ class Network{
                             neurons[i] = datapoint.first[i];
                         }
                         neuronFiring();
+                        for(int i = 0; i < datapoint.first.size(); i++){
+                            neurons[i] = datapoint.first[i];
+                        }
                         for(int i = 0; i < datapoint.second.size(); i++){
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
@@ -304,9 +383,12 @@ class Network{
             printf("\n");
         }
 
-        void storeNeuronStates(const vector<bool> newStates) {
+        void storeNeuronStates(const vector<bool> newStates, const double significanceMin = 0.000001, const double significanceMax = 0.01) {
             for(int i = 0; i < neuronHistory.size(); i++){
                 neuronHistory[i].push_back(newStates[i]);
+            }
+            if(neuronHistory.size() > log(significanceMin)/log(1.0-decay)){
+                neuronHistory.erase(neuronHistory.begin(), neuronHistory.begin() + (neuronHistory.size() - (int)neuronHistory.size() > log(significanceMax)/log(1.0-decay)));
             }
         }
         void clearNeuronHistory(){

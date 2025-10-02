@@ -89,17 +89,9 @@ int main(int argc, char *argv[]){
 
 	Network network = Network(networkArgs);
 
-	network.train(dataset,train_epochs);	
+    network.runFull(dataset, dataset_test, 100);
 
     network.printAdjMatrix();
-
-
-
-	network.test(dataset_test, test_epochs);
-    
-    for(auto& datum : dataset_test){
-        network.validate(datum.first,datum.second);
-    }
 
 	return 0;
 }
