@@ -40,12 +40,12 @@ class Network{
 
             if(pre){
                 for(int i = 0; i < spikes.size(); i++){
-                    tracePre[i] = (1.0-decayPre)*tracePre[i] + (spikes[i] ? 1.0 : 0.0);
+                    tracePre[i] = (1.0-decayPre)*tracePre[i] + (spikes[i] ? 1.0 : -1.0);
                     tracePost[i] *= (1.0-decayPost);
                 }
             }else{
                 for(int i = 0; i < spikes.size(); i++){
-                    tracePost[i] += (spikes[i] ? 1.0 : 0.0);
+                    tracePost[i] += (spikes[i] ? 1.0 : -1.0);
                 }
             }
         }
