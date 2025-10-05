@@ -5,16 +5,16 @@ from plotly.io import show
 
 def run_network(trial):
 	result = subprocess.run("./main --dataset datasets/simple.txt --neuronSize {neuronSize} --timeWindow {timeWindow} --reg {reg} --pos-lr {posA} --neg-lr {negA} \
-	 	--decay {decay} \
-		--epochs {epochs} \
-		--determinism {determinism} --null-window 0 --col-only 1".format(
-			neuronSize = str(trial.suggest_int("neuronSize", 10,200)),
+	 	--decay {decay} --path-decay {path_decay}\
+		--epochs 1000 \
+		--determinism {determinism} --null-window 0".format(
+			neuronSize = str(trial.suggest_int("neuronSize", 6,50)),
 			timeWindow = str(trial.suggest_int("timeWindow", 2, 50)),
 			reg = str(trial.suggest_float("reg", 0.0000000001, 1.0, log=True)),
 			posA = str(trial.suggest_float("posA", 0.0000001, 1.0, log=True)),
 			negA = str(trial.suggest_float("negA", 0.0000001, 1.0, log=True)),
 			decay = str(trial.suggest_float("decay",0.00001,1.0, log=True)),
-			epochs = 200,
+			path_decay = str(trial.suggest_float("path_decay",0.01,1.0, log=True)),
 			determinism = str(trial.suggest_float("determinism",0,1)),
 			#firing_val = str(trial.suggest_float("firing_val",-5,5))
 			), shell=True, capture_output=True,text=True)

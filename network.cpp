@@ -12,6 +12,7 @@ using namespace std;
 
 
 //NOTE ABOUT vector<bool>: it returns a proxy element so setting refs causes bad behavior. copying and setting seems to be fine and for printing use vector[i] ? true : false
+//AdjMatrix[i][j] is i->j , row: sender , col: receiver
 class Network{
 
     private:
@@ -29,6 +30,7 @@ class Network{
         bool verbose = false;
         double pos_lr = 0.0001;
         double neg_lr = 0.00001;
+        double path_decay = 0.1;
 
         //uniform_real_distribution<double> unif;
 
@@ -36,11 +38,11 @@ class Network{
 
             if(pre){
                 for(int i = 0; i < spikes.size(); i++){
-                    trace_pre[i] = (1.0-decay)*trace_pre[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_pre[i]); 
+                    trace_pre[i] = min((1.0-decay)*trace_pre[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_pre[i]), 1.0); 
                 }
             }else{
                 for(int i = 0; i < spikes.size(); i++){
-                    trace_post[i] = (1.0-decay)*trace_post[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_post[i]); 
+                    trace_post[i] = min((1.0-decay)*trace_post[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_post[i]), 1.0); 
                 }
             }
         }
@@ -50,9 +52,9 @@ class Network{
             mt19937 gen(random_device{}());
             uniform_real_distribution<double> unif(0.0,1.0);
             vector<double> newStates(neurons.size(), 0.0);
-            for (int i=0; i < adjMatrix.cols(); i++){
+            for (int i=0; i < adjMatrix.rows(); i++){
                 if(neurons[i]){
-                    for(int j=0; j < adjMatrix.rows(); j++){
+                    for(int j=0; j < adjMatrix.cols(); j++){
                         if(unif(gen) < abs(adjMatrix[i][j])){
                             newStates[j] += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1.0-determinism);
                         }
@@ -127,6 +129,10 @@ class Network{
                     this->null_window = get<int>(pair.second);
                     printf("\nnull_window: %d", this->null_window);
                 }
+                else if(pair.first == "--path-decay"){
+                    this->path_decay = get<double>(pair.second);
+                    printf("\npath_decay: %d", this->path_decay);
+                }
             }
         }
 
@@ -137,8 +143,7 @@ class Network{
             int score = 0;
             int scoreC = 0;
             for(int epoch = 0; epoch < epochs; epoch++){
-                int score = 0;
-                int scoreC = 0;
+
                 if(ds_shuffle){
                     mt19937 g(random_device{}());
                     shuffle(dataset.begin(), dataset.end(), g);
@@ -155,24 +160,20 @@ class Network{
                                 neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
                             }
                         }
-                        for(int b = 0; b < neurons.size(); b++){
-                            printf("%d", neurons[b] ? true : false);
-                            if(b == datapoint.first.size()-1){
-                                printf("|");
-                            }else if(b == neurons.size() - datapoint.second.size()-1){
-                                printf("|");
-                            }
-                        }
+                        
+                        updateTrace(neurons, true);
+                        neuronFiring();
+                        updateTrace(neurons, false);
+                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr, path_decay);
+
+                        printNetwork({datapoint.first.size()-1, neurons.size() - datapoint.second.size()-1});
+
                         if(timestep < null_window){
                             printf("|%d|null", epoch);
                         }else{
                             printf("|%d|training", epoch);
                         }
                         printf("|%f\n", (double)score/scoreC);
-                        updateTrace(neurons, true);
-                        neuronFiring();
-                        updateTrace(neurons, false);
-                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
                     }
                 }
 
@@ -183,7 +184,11 @@ class Network{
                                 neurons[i] = datapoint.first[i];
                             }
                         }
+
+                        updateTrace(neurons, true);
                         neuronFiring();
+                        updateTrace(neurons, true);
+                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
                         if(timestep >= null_window){
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
@@ -194,14 +199,9 @@ class Network{
                                 scoreC++;
                             }
                         }
-                        for(int b = 0; b < neurons.size(); b++){
-                            printf("%d", neurons[b] ? true : false);
-                            if(b == datapoint.first.size()-1){
-                                printf("|");
-                            }else if(b == neurons.size() - datapoint.second.size()-1){
-                                printf("|");
-                            }
-                        }
+
+                        printNetwork({datapoint.first.size()-1, neurons.size() - datapoint.second.size()-1});
+
                         if(timestep < null_window){
                             printf("|%d|null\n", epoch);
                         }else{
@@ -216,6 +216,8 @@ class Network{
             }
 
 
+
+        //TRAIN AND TEST ARE OUTDATED
         void train(vector<pair<vector<bool>, vector<bool>>> dataset, int epochs = 1){
 
             for (int epoch = 0; epoch < epochs; epoch++)
@@ -236,7 +238,7 @@ class Network{
                         for(int i = 0; i < datapoint.second.size(); i++){
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
-                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
+                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr, path_decay);
                     }
                 }
             }
@@ -301,5 +303,19 @@ class Network{
                 }
                 printf("\n");
             }
+        }
+        void printNetwork(vector<double> pos, bool new_line = false){
+
+            for(int b = 0; b < neurons.size(); b++){
+                printf("%d", neurons[b] ? true : false);
+
+                for(int p = 0; p < pos.size(); p++){
+                    if(b == pos[p]){
+                        printf("|");
+                        continue;
+                    }
+                }
+            }
+        
         }
 };
