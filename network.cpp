@@ -27,7 +27,6 @@ class Network{
         double decay = 0.01;
         double determinism = 0.5;
         double firing_value = 1.0;
-        bool verbose = false;
         double pos_lr = 0.0001;
         double neg_lr = 0.00001;
         double path_decay = 0.1;
@@ -87,11 +86,8 @@ class Network{
                 }else if(pair.first == "--time-window"){
                     this->timeWindow = get<int>(pair.second);
                     printf("\ntimeWindow: %d", this->timeWindow);
-                }else if(pair.first == "--pos-lr" || pair.first == "--lr"){
+                }else if(pair.first == "--pos-lr"){
                     this->pos_lr = get<double>(pair.second);
-                    if(pair.first == "--lr"){
-                        this->neg_lr = get<double>(pair.second);
-                    }
                     printf("\npos_lr: %f", this->pos_lr);
                 }else if(pair.first == "--neg-lr"){
                     this->neg_lr = get<double>(pair.second);
@@ -105,13 +101,9 @@ class Network{
                     this->decay = get<double>(pair.second);
                     printf("\ndecay: %f", this->decay);
                 }
-                else if(pair.first == "--pos-amplitude"){
-                    this->pos_lr = get<double>(pair.second); 
-                    printf("\npos-amplitude: %f", this->pos_lr);
-                }
-                else if(pair.first == "--neg-amplitude"){
-                    this->neg_lr = get<double>(pair.second); 
-                    printf("\nneg_lr: %f", this->neg_lr);
+               else if(pair.first == "--path-decay"){
+                    this->path_decay = get<double>(pair.second);
+                    printf("\npath_decay: %f", this->path_decay);
                 }
                 else if(pair.first == "--determinism"){
                     this->determinism = get<double>(pair.second); 
@@ -121,18 +113,11 @@ class Network{
                     this->firing_value = get<double>(pair.second); 
                     printf("\nfiring_value: %f", this->firing_value);
                 }
-                else if(pair.first == "--verbose"){
-                    this->verbose = get<bool>(pair.second); 
-                    printf("\nVerbose: %d", this->verbose);
-                }
                 else if(pair.first == "--null-window"){
                     this->null_window = get<int>(pair.second);
                     printf("\nnull_window: %d", this->null_window);
                 }
-                else if(pair.first == "--path-decay"){
-                    this->path_decay = get<double>(pair.second);
-                    printf("\npath_decay: %d", this->path_decay);
-                }
+
             }
         }
 
@@ -166,14 +151,17 @@ class Network{
                         updateTrace(neurons, false);
                         adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr, path_decay);
 
-                        printNetwork({datapoint.first.size()-1, neurons.size() - datapoint.second.size()-1});
+                        
+                        printNetwork({(int)datapoint.first.size()-1,(int) neurons.size() - datapoint.second.size()-1});
 
                         if(timestep < null_window){
                             printf("|%d|null", epoch);
                         }else{
                             printf("|%d|training", epoch);
+
                         }
                         printf("|%f\n", (double)score/scoreC);
+                        
                     }
                 }
 
@@ -200,12 +188,14 @@ class Network{
                             }
                         }
 
-                        printNetwork({datapoint.first.size()-1, neurons.size() - datapoint.second.size()-1});
+
+                        
+                        printNetwork({(int)datapoint.first.size()-1, (int) neurons.size() - datapoint.second.size()-1});
 
                         if(timestep < null_window){
                             printf("|%d|null\n", epoch);
                         }else{
-                            printf("|%d|testing|%f|", epoch,(double)score/scoreC);
+                            printf("|%d|testing |%f|", epoch,(double)score/scoreC);
                             for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
                             printf("\n");
                         }
@@ -222,7 +212,6 @@ class Network{
 
             for (int epoch = 0; epoch < epochs; epoch++)
             {
-                if(verbose) printf("\n Epoch %d", epoch+1);
                 for(const auto& datapoint : dataset){
                     for(int timestep = 0; timestep < null_window; timestep ++){
                         neuronFiring();
@@ -304,7 +293,7 @@ class Network{
                 printf("\n");
             }
         }
-        void printNetwork(vector<double> pos, bool new_line = false){
+        void printNetwork(vector<int> pos, bool new_line = false){
 
             for(int b = 0; b < neurons.size(); b++){
                 printf("%d", neurons[b] ? true : false);

@@ -24,7 +24,7 @@ def run_network(trial):
 		print("Command failed:", result.stderr)
 	else:
 		for line in result.stdout.strip().splitlines():
-			match = re.search(r"\|testing\|([^|]+)\|", line)
+			match = re.search(r"\|testing \|([^|]+)\|", line)
 
 			if(match):
 				score = float(match.group(1))

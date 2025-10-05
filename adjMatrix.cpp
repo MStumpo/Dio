@@ -145,18 +145,16 @@ class AdjacencyMatrix{
         void updateAdj(const vector<bool> spikes,const vector<double> trace_pre, const vector<double> trace_post, double reg = 0.001,
         	double pos_lr = 0.001, double neg_lr = 0.001, double path_decay = 0.1){
 
-        	vector<vector<double>> T = computeTotalContribution(data, path_decay);
-        	vector<double> col_av = colAverages(data);
+        	//vector<vector<double>> T = computeTotalContribution(data, path_decay);
+        	//vector<double> col_av = colAverages(data);
         	//double det = abs(determinant(data));
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
 
-         			//printf("\n %f, %f",data[i][j],T[i][j]);
-         			if(data[i][j] > 0){
-         				data[i][j] += (pos_lr*trace_pre[i]*spikes[j] - neg_lr*spikes[i]*trace_post[j])/(T[i][j]+1) - reg*data[i][j];
-         			}else{
-         				data[i][j] -= (pos_lr*trace_pre[i]*!spikes[j] - neg_lr*!spikes[i]*trace_post[j])/(T[i][j]+1) - reg*data[i][j];
-         			}
+         			//printf("\n %f, %f",data[i][j],neg_lr);
+
+         			data[i][j] += (pos_lr*trace_pre[i]*spikes[j] - neg_lr*spikes[i]*trace_post[j]) - reg*data[i][j];
+
          			//printf("---> %f",data[i][j]);
 
          			data[i][j] = max(-1.0,min(1.0,data[i][j]));
