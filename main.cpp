@@ -33,9 +33,9 @@ int main(int argc, char *argv[]){
 
     using Args = variant<int, double, bool>;
 
-    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--pos-lr", 1.0},
-                                                 {"-neg-lr", 1.0}, {"--decayPre",0.05},{"--decayPost", 0.05}, {"--entropy-factor", 1.0}, {"--kernel-size", 2}, {"--col-only", false},
-                                                  {"--kernel-normalization", false}, {"--determinism", 0.0},{"--firing-value", 1.0},{"--null-window", 10}, {"--verbose", false},
+    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--pos-lr", 0.01},
+                                                 {"-neg-lr", 0.015}, {"--decay",0.05},
+                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}, {"--verbose", false},
                                                    };
 
     int epochs = 1;

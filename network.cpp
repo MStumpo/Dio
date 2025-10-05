@@ -5,6 +5,8 @@
 #include <variant>
 #include <stdexcept>
 #include <omp.h>
+#include <cstdio>
+
 #include "adjMatrix.cpp"
 using namespace std;
 
@@ -14,41 +16,55 @@ class Network{
 
     private:
         vector<bool> neurons;
-        vector<double> tracePre;
-        vector<double> tracePost;
+        vector<double> trace_pre;
+        vector<double> trace_post;
 
         AdjacencyMatrix adjMatrix;
-        double lr = 0.001;
         double reg  =0.0001;
         int timeWindow = 10;
         int null_window = 10;
-        double decayPre = 0.01;
-        double decayPost = 0.01;
-        int kernel_size = 2;
-        bool kernelNormalization = false;
-        double determinism = 0.0;
+        double decay = 0.01;
+        double determinism = 0.5;
         double firing_value = 1.0;
-        double entropyFactor = 1.0;
-        bool col_only = false;
         bool verbose = false;
         double pos_lr = 0.0001;
         double neg_lr = 0.00001;
 
         //uniform_real_distribution<double> unif;
 
-        void updateTrace(const vector<bool> spikes, bool pre=true){
+        void updateTrace(const vector<bool> spikes, bool pre= true){
 
             if(pre){
                 for(int i = 0; i < spikes.size(); i++){
-                    tracePre[i] = (1.0-decayPre)*tracePre[i] + (spikes[i] ? 1.0 : -1.0);
-                    tracePost[i] *= (1.0-decayPost);
+                    trace_pre[i] = (1.0-decay)*trace_pre[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_pre[i]); 
                 }
             }else{
                 for(int i = 0; i < spikes.size(); i++){
-                    tracePost[i] += (spikes[i] ? 1.0 : -1.0);
+                    trace_post[i] = (1.0-decay)*trace_post[i] + (spikes[i] ? 1.0 : 0.0)*(1.0-trace_post[i]); 
                 }
             }
         }
+
+        void neuronFiring(){
+
+            mt19937 gen(random_device{}());
+            uniform_real_distribution<double> unif(0.0,1.0);
+            vector<double> newStates(neurons.size(), 0.0);
+            for (int i=0; i < adjMatrix.cols(); i++){
+                if(neurons[i]){
+                    for(int j=0; j < adjMatrix.rows(); j++){
+                        if(unif(gen) < abs(adjMatrix[i][j])){
+                            newStates[j] += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1.0-determinism);
+                        }
+                        newStates[j] += adjMatrix[i][j]*determinism;
+                    }
+                }
+            }
+            for (int i = 0; i < newStates.size(); i++) {
+                neurons[i] = (newStates[i] >= firing_value) ? true : false;
+            }
+        }
+
 
     public:
 
@@ -63,27 +79,29 @@ class Network{
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
                     neurons.assign(get<int>(pair.second), false);
-                    tracePre = vector<double>(get<int>(pair.second), 0.0);
-                    tracePost = vector<double>(get<int>(pair.second), 0.0);
+                    trace_pre = vector<double>(get<int>(pair.second), 0.0);
+                    trace_post = vector<double>(get<int>(pair.second), 0.0);
                     printf("\nneurons : %d", get<int>(pair.second));
                 }else if(pair.first == "--time-window"){
                     this->timeWindow = get<int>(pair.second);
                     printf("\ntimeWindow: %d", this->timeWindow);
-                }else if(pair.first == "--lr"){
-                    this->lr = get<double>(pair.second);
-                    printf("\nlr: %f", this->lr);
+                }else if(pair.first == "--pos-lr" || pair.first == "--lr"){
+                    this->pos_lr = get<double>(pair.second);
+                    if(pair.first == "--lr"){
+                        this->neg_lr = get<double>(pair.second);
+                    }
+                    printf("\npos_lr: %f", this->pos_lr);
+                }else if(pair.first == "--neg-lr"){
+                    this->neg_lr = get<double>(pair.second);
+                    printf("\nneg_lr: %f", this->neg_lr);
                 }
                 else if(pair.first == "--reg"){
                     this->reg = get<double>(pair.second);
                     printf("\nreg: %f", this->reg);
                 }
-                else if(pair.first =="--decayPre"){
-                    this->decayPre = get<double>(pair.second);
-                    printf("\ndecay: %f", this->decayPre);
-                }
-                else if(pair.first =="--decayPost"){
-                    this->decayPost = get<double>(pair.second);
-                    printf("\ndecay: %f", this->decayPre);
+                else if(pair.first =="--decay"){
+                    this->decay = get<double>(pair.second);
+                    printf("\ndecay: %f", this->decay);
                 }
                 else if(pair.first == "--pos-amplitude"){
                     this->pos_lr = get<double>(pair.second); 
@@ -93,14 +111,6 @@ class Network{
                     this->neg_lr = get<double>(pair.second); 
                     printf("\nneg_lr: %f", this->neg_lr);
                 }
-                else if(pair.first == "--kernel-size"){
-                    this->kernel_size = get<int>(pair.second);
-                    printf("\nk_size: %d", this->kernel_size);
-                }
-                else if(pair.first == "--kernel-normalization"){
-                    this->kernelNormalization = get<bool>(pair.second); 
-                    printf("\nk_norm: %d", this->kernelNormalization);
-                }
                 else if(pair.first == "--determinism"){
                     this->determinism = get<double>(pair.second); 
                     printf("\ndeterminism: %f", this->determinism);
@@ -108,14 +118,6 @@ class Network{
                 else if(pair.first == "--firing-value"){
                     this->firing_value = get<double>(pair.second); 
                     printf("\nfiring_value: %f", this->firing_value);
-                }
-                else if(pair.first == "--entropy-factor"){
-                    this->entropyFactor = get<double>(pair.second); 
-                    printf("\nentropy-factor: %f", this->entropyFactor);
-                }
-                else if(pair.first == "--col-only"){
-                    this->col_only = get<bool>(pair.second); 
-                    printf("\nentropy-col-only: %d", this->col_only);
                 }
                 else if(pair.first == "--verbose"){
                     this->verbose = get<bool>(pair.second); 
@@ -128,43 +130,15 @@ class Network{
             }
         }
 
-        void neuronFiring(){
-
-            mt19937 gen(random_device{}() + omp_get_thread_num());
-
-            uniform_real_distribution<double> unif(0.0,1.0);
-
-            vector<double> newStates(neurons.size(), 0.0);
-
-            #pragma omp parallel for
-            for (int i=0; i < adjMatrix.cols(); i++){
-                if(neurons[i]){
-                    for(int j=0; j < adjMatrix.rows(); j++){
-                        double add = 0.0;
-                        if(unif(gen) < abs(adjMatrix[i][j])){
-                            add += ((adjMatrix[i][j] > 0)? 1.0 : -1.0)*(1.0-determinism);
-                        }
-                        add += adjMatrix[i][j]*determinism;
-                        if(add != 0.0){
-                            #pragma omp atomic
-                            newStates[j] += add;
-                        }
-                    }
-                }
-            }
-
-            #pragma omp parallel for
-            for (int i = 0; i < newStates.size(); i++) {
-                neurons[i] = (newStates[i] >= firing_value) ? true : false;
-            }
-        }
-
         void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true){
             
+            FILE* f = fopen("outputs/output.txt", "w");
 
             int score = 0;
             int scoreC = 0;
             for(int epoch = 0; epoch < epochs; epoch++){
+                int score = 0;
+                int scoreC = 0;
                 if(ds_shuffle){
                     mt19937 g(random_device{}());
                     shuffle(dataset.begin(), dataset.end(), g);
@@ -190,15 +164,15 @@ class Network{
                             }
                         }
                         if(timestep < null_window){
-                            printf("    Epoch %d, null", epoch);
+                            printf("|%d|null", epoch);
                         }else{
-                            printf("    Epoch %d, training", epoch);
+                            printf("|%d|training", epoch);
                         }
-                        printf(" score: %f \n", (double)score/scoreC);
+                        printf("|%f\n", (double)score/scoreC);
                         updateTrace(neurons, true);
                         neuronFiring();
                         updateTrace(neurons, false);
-                        adjMatrix.updateAdj(neurons, tracePre, tracePost,1, reg, kernel_size, kernelNormalization, entropyFactor, col_only, pos_lr, neg_lr);
+                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
                     }
                 }
 
@@ -229,14 +203,12 @@ class Network{
                             }
                         }
                         if(timestep < null_window){
-                            printf("    Epoch %d, null\n", epoch);
+                            printf("|%d|null\n", epoch);
                         }else{
-                            printf("    Epoch %d, testing, (", epoch);
+                            printf("|%d|testing|%f|", epoch,(double)score/scoreC);
                             for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
-                            printf(")");
+                            printf("\n");
                         }
-                        printf(" score: %f\n", (double)score/scoreC);
-
                     }
                 }
             }
@@ -264,7 +236,7 @@ class Network{
                         for(int i = 0; i < datapoint.second.size(); i++){
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
-                        adjMatrix.updateAdj(neurons, tracePre, tracePost,1, reg, kernel_size, kernelNormalization, entropyFactor, col_only, pos_lr, neg_lr);
+                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
                     }
                 }
             }
