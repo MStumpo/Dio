@@ -35,7 +35,7 @@ int main(int argc, char *argv[]){
 
     vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--pos-lr", 0.01},
                                                  {"--neg-lr", 0.01}, {"--decay",0.05}, {"--path-decay", 0.1},
-                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}
+                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}, {"--trace-increase", 1.0}
                                                    };
 
     int epochs = 1;
@@ -85,7 +85,7 @@ int main(int argc, char *argv[]){
 
     network.runFull(dataset, dataset_test, epochs);
 
-    //network.printAdjMatrix();
+    network.printAdjMatrix();
 
 	return 0;
 }

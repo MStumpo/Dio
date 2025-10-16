@@ -24,7 +24,7 @@ class AdjacencyMatrix{
 			return sums;
 		}
 
-		vector<vector<double>> getMinor(const vector<vector<double>>& matrix, int row, int col) {
+	    vector<vector<double>> getMinor(const vector<vector<double>>& matrix, int row, int col) {
 	    int n = matrix.size();
 	    vector<vector<double>> minor;
 	    for (int i = 0; i < n; i++) {
@@ -52,8 +52,6 @@ class AdjacencyMatrix{
 		}
 
 
-
-		// neg_lr multiplication
 		vector<vector<double>> matMul(const vector<vector<double>>& A, const vector<vector<double>>& B) {
 		    size_t N = A.size();
 		    vector<vector<double>> C(N, std::vector<double>(N, 0.0));
@@ -68,7 +66,6 @@ class AdjacencyMatrix{
 		    return C;
 		}
 
-		// Matrix addition
 		vector<vector<double>> matAdd(const vector<vector<double>>& A, const vector<vector<double>>& B) {
 		    size_t N = A.size();
 		    vector<vector<double>> C(N, std::vector<double>(N, 0.0));
@@ -81,7 +78,6 @@ class AdjacencyMatrix{
 		    return C;
 		}
 
-		// Scalar multiplication
 		vector<vector<double>> scalarMul(const vector<vector<double>>& A, double scalar) {
 		    size_t N = A.size();
 		    vector<vector<double>> C(N, std::vector<double>(N, 0.0));
@@ -95,7 +91,7 @@ class AdjacencyMatrix{
 		}
 
 		// Compute T = alpha*W + alpha^2*W^2 + ... up to K terms
-		vector<vector<double>> computeTotalContribution(const vector<vector<double>>& W, double contrib_decay = 0.1, int K = 10) {
+		vector<vector<double>> computeTotalContribution(const vector<vector<double>>& W, double path_decay = 0.1, int K = 10) {
 		    size_t N = W.size();
 		    vector<vector<double>> T(N, vector<double>(N, 0.0));
 		    vector<vector<double>> W_power = W; // W^1
@@ -104,7 +100,7 @@ class AdjacencyMatrix{
 		    for (int k = 1; k <= K; ++k) {
 		        T = matAdd(T, scalarMul(W_power, factor));
 		        W_power = matMul(W_power, W); // W^(k+1)
-		        factor *= contrib_decay;
+		        factor *= path_decay;
 		    }
 		    double max_val = 0.0;
 
@@ -116,6 +112,19 @@ class AdjacencyMatrix{
 
 
 		    return scalarMul(T, 1/max_val);
+		}
+		vector<double> colEntropy(const vector<vector<double>>& W){
+			size_t N = W.size();
+			vector<double> entropy(N, 0.0);
+
+			for(int col = 0; col < N; col++){
+				for(int row=0; row < N; row++){
+					if(W[row][col] != 0.0) entropy[col] += -abs(W[row][col])*log(abs(W[row][col]));
+				}
+				entropy[col] /=N;
+			}
+
+			return entropy;
 		}
 
 	public:
@@ -148,12 +157,13 @@ class AdjacencyMatrix{
         	//vector<vector<double>> T = computeTotalContribution(data, path_decay);
         	//vector<double> col_av = colAverages(data);
         	//double det = abs(determinant(data));
+		//vector<double> entropy = colEntropy(data);
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
 
-         			//printf("\n %f, %f",data[i][j],neg_lr);
+         			//printf("\n %f, %f",pos_lr,neg_lr);
 
-         			data[i][j] += (pos_lr*trace_pre[i]*spikes[j] - neg_lr*spikes[i]*trace_post[j]) - reg*data[i][j];
+         			data[i][j] += (pos_lr*trace_pre[i]*spikes[j] - neg_lr*trace_post[j]*spikes[i]) - reg*data[i][j];
 
          			//printf("---> %f",data[i][j]);
 
@@ -161,5 +171,4 @@ class AdjacencyMatrix{
             	}
             }
         }
-	
 };
