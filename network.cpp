@@ -17,34 +17,32 @@ class Network{
 
     private:
         vector<bool> neurons;
-        vector<double> trace_pre;
-        vector<double> trace_post;
+        vector<double> trace;
+	vector<vector<double>> U;
 
         AdjacencyMatrix adjMatrix;
         double reg  =0.0001;
         int timeWindow = 10;
         int null_window = 10;
         double decay = 0.01;
-	double trace_increase = 0.8;
+	double U_decay = 0.01;
+	double lr = 0.01;
         double determinism = 0.5;
         double firing_value = 1.0;
-        double pos_lr = 0.0001;
-        double neg_lr = 0.00001;
-        double path_decay = 0.1;
 
         //uniform_real_distribution<double> unif;
 
-        void updateTrace(const vector<bool> spikes, bool pre= true){
-
-            if(pre){
-                for(int i = 0; i < spikes.size(); i++){
-                    trace_pre[i] = min((1.0-decay)*trace_pre[i] + (spikes[i] ? trace_increase : 0.0)*(1-trace_pre[i]), 1.0); 
-                }
-            }else{
-                for(int i = 0; i < spikes.size(); i++){
-                    trace_post[i] = min((1.0-decay)*trace_post[i] + (spikes[i] ? trace_increase : 0.0)*(1-trace_post[i]), 1.0); 
-                }
-            }
+        void updateTrace(const vector<bool> spikes){
+		for(int i=0; i < trace.size(); i++){
+			trace[i] = trace[i]*(1-decay) + decay*spikes[i];
+		}
+		for(int i=0; i < U.size(); i++){
+			U[i][i] = U[i][i]*(1-U_decay) + U_decay*trace[i]*spikes[i];
+			for(int j=0; j < i; j++){
+				U[i][j] = U[i][j]*(1-U_decay) + U_decay*trace[i]*spikes[j];
+				U[j][i] = U[j][i]*(1-U_decay) + U_decay*trace[j]*spikes[i];
+			}
+		}
         }
 
         void neuronFiring(){
@@ -78,53 +76,48 @@ class Network{
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
                     neurons.assign(get<int>(pair.second), false);
-                    trace_pre = vector<double>(get<int>(pair.second), 0.0);
-                    trace_post = vector<double>(get<int>(pair.second), 0.0);
-                    printf("\nneurons : %d", get<int>(pair.second));
+                    trace = vector<double>(get<int>(pair.second), 0.0);
+                    U = vector<vector<double>>(get<int>(pair.second), vector<double>(get<int>(pair.second),0.0));
+		    printf("\nneurons : %d", get<int>(pair.second));
                 }else if(pair.first == "--time-window"){
                     this->timeWindow = get<int>(pair.second);
                     printf("\ntimeWindow: %d", this->timeWindow);
-                }else if(pair.first == "--pos-lr"){
-                    this->pos_lr = get<double>(pair.second);
-                    printf("\npos_lr: %f", this->pos_lr);
-                }else if(pair.first == "--neg-lr"){
-                    this->neg_lr = get<double>(pair.second);
-                    printf("\nneg_lr: %f", this->neg_lr);
+                }else if(pair.first == "--lr"){
+                    this->lr = get<double>(pair.second);
+                    printf("\nlr: %f", this->lr);
                 }
                 else if(pair.first == "--reg"){
                     this->reg = get<double>(pair.second);
                     printf("\nreg: %f", this->reg);
                 }
-                else if(pair.first =="--decay"){
+                else if(pair.first == "--decay"){
                     this->decay = get<double>(pair.second);
                     printf("\ndecay: %f", this->decay);
                 }
-               else if(pair.first == "--path-decay"){
-                    this->path_decay = get<double>(pair.second);
-                    printf("\npath_decay: %f", this->path_decay);
-                }
+		else if(pair.first == "--u-decay"){
+		    this->U_decay = get<double>(pair.second);
+		    printf("\nU-decay: %f", this->U_decay);
+		}
                 else if(pair.first == "--determinism"){
-                    this->determinism = get<double>(pair.second); 
+                    this->determinism = get<double>(pair.second);
                     printf("\ndeterminism: %f", this->determinism);
                 }
                 else if(pair.first == "--firing-value"){
-                    this->firing_value = get<double>(pair.second); 
+                    this->firing_value = get<double>(pair.second);
                     printf("\nfiring_value: %f", this->firing_value);
                 }
                 else if(pair.first == "--null-window"){
                     this->null_window = get<int>(pair.second);
                     printf("\nnull_window: %d", this->null_window);
                 }
-		else if(pair.first == "--trace-increase"){
-		    this->trace_increase = get<double>(pair.second);
-		    printf("\ntrace_increase: %f", this->trace_increase);
+		else{
+		   printf("\n!!!! UNKNOWN ARG PASSED TO NETWORK !!!! : %s ", pair.first.c_str());
 		}
-
             }
         }
 
         void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true){
-            
+
             FILE* f = fopen("outputs/output.txt", "w");
 
             int score = 0;
@@ -147,10 +140,10 @@ class Network{
                                 neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
                             }
                         }
-                        updateTrace(neurons, true);
+			updateTrace(neurons);
                         neuronFiring();
-                        updateTrace(neurons, false);
-                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr, path_decay);
+                        //updateTrace(neurons);
+                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
 
                         printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
 
@@ -171,11 +164,9 @@ class Network{
                                 neurons[i] = datapoint.first[i];
                             }
                         }
-
-                        //updateTrace(neurons, true);
                         neuronFiring();
                         //updateTrace(neurons, true);
-                        //adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr);
+                        //adjMatrix.updateAdj(neurons, trace, U, reg, lr);
                         if(timestep >= null_window){
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
@@ -224,7 +215,7 @@ class Network{
                         for(int i = 0; i < datapoint.second.size(); i++){
                             neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
                         }
-                        adjMatrix.updateAdj(neurons, trace_pre, trace_post, reg, pos_lr, neg_lr, path_decay);
+                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
                     }
                 }
             }
@@ -257,9 +248,9 @@ class Network{
 
         }
 
-        void validate(vector<bool> sample, vector<bool> target, int iterations = NULL){
+        void validate(vector<bool> sample, vector<bool> target, int iterations = -1){
 
-            if(iterations == NULL){
+            if(iterations == -1){
                 iterations = timeWindow;
             }
             for(int t = 0; t < iterations; t++){

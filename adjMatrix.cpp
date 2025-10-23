@@ -127,6 +127,15 @@ class AdjacencyMatrix{
 			return entropy;
 		}
 
+		vector<double> U_squared(const vector<vector<double>>& U){
+			size_t N = U.size();
+			vector<double> U_sq(N, 0.0);
+			for(int i = 0; i < N; i++){
+				for(int j = 0; j < N; j++) U_sq[i] += pow(U[j][i],2);
+				U_sq[i] /= N;
+			}
+			return U_sq;
+		}
 	public:
 
     	vector<double> operator[](size_t row){
@@ -151,22 +160,16 @@ class AdjacencyMatrix{
 
 		}
 
-        void updateAdj(const vector<bool> spikes,const vector<double> trace_pre, const vector<double> trace_post, double reg = 0.001,
-        	double pos_lr = 0.001, double neg_lr = 0.001, double path_decay = 0.1){
+        void updateAdj(const vector<bool> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
+	
+	 vector<double> U_sq = U_squared(U);
 
-        	//vector<vector<double>> T = computeTotalContribution(data, path_decay);
-        	//vector<double> col_av = colAverages(data);
-        	//double det = abs(determinant(data));
-		//vector<double> entropy = colEntropy(data);
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
 
-         			//printf("\n %f, %f",pos_lr,neg_lr);
+         			//printf("\n %f, %f",data[i][j], U_sq[j]);
 
-         			data[i][j] += (pos_lr*trace_pre[i]*spikes[j] - neg_lr*trace_post[j]*spikes[i]) - reg*data[i][j];
-
-         			//printf("---> %f",data[i][j]);
-
+         			data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*trace[i]*(2*spikes[j] - 1)*sqrt(pow(U[i][j], 2)/(pow(U[i][j],2) + U_sq[j]));
          			data[i][j] = max(-1.0,min(1.0,data[i][j]));
             	}
             }

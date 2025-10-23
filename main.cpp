@@ -3,7 +3,8 @@
 #include <cstdlib>  // For std::stoi and std::stod
 #include <variant>
 #include <fstream>
-
+#include <chrono>
+#include <thread>
 
 vector<pair<vector<bool>, vector<bool>>> readDatasetFile(const string& filename){
     vector<pair<vector<bool>, vector<bool>>> dataset;
@@ -25,7 +26,7 @@ vector<pair<vector<bool>, vector<bool>>> readDatasetFile(const string& filename)
                 dataset.back().second.push_back(c == '1');
             }
         }
-    }   
+    }
     return dataset;
 }
 
@@ -33,10 +34,8 @@ int main(int argc, char *argv[]){
 
     using Args = variant<int, double, bool>;
 
-    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--pos-lr", 0.01},
-                                                 {"--neg-lr", 0.01}, {"--decay",0.05}, {"--path-decay", 0.1},
-                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}, {"--trace-increase", 1.0}
-                                                   };
+    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--lr", 0.01}, {"--decay",0.01}, {"--u-decay", 0.01},
+                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0} };
 
     int epochs = 1;
     vector<pair<vector<bool>, vector<bool>>> dataset;
@@ -59,9 +58,10 @@ int main(int argc, char *argv[]){
                         i++;
                     }
                 }, networkArgs[j].second);
+		continue;
             }
         }
-        if(string(argv[i]) == "--train-epochs" || string(argv[i]) == "--epochs"){
+        if(string(argv[i]) == "--epochs"){
             epochs = stoi(argv[i+1]);
             printf("\ntrain_epochs: %d", epochs);
 
@@ -72,7 +72,10 @@ int main(int argc, char *argv[]){
         }else if (string(argv[i]) == "--dataset-test"){
             dataset_test = readDatasetFile(argv[i+1]);
             i++;
-        }
+        }else{
+	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
+            printf("%s\n", string(argv[i]).c_str());
+	}
     }
 
     if(dataset_test.empty()){
@@ -82,7 +85,7 @@ int main(int argc, char *argv[]){
 
 
 	Network network = Network(networkArgs);
-
+    this_thread::sleep_for(chrono::seconds(10));
     network.runFull(dataset, dataset_test, epochs);
 
     network.printAdjMatrix();
