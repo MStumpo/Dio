@@ -131,7 +131,11 @@ class AdjacencyMatrix{
 			size_t N = U.size();
 			vector<double> U_sq(N, 0.0);
 			for(int i = 0; i < N; i++){
-				for(int j = 0; j < N; j++) U_sq[i] += pow(U[j][i],2);
+				U_sq[i] += pow(U[i][i],2);
+				for(int j = 0; j < i; j++){
+					U_sq[i] += pow(U[j][i],2);
+					U_sq[j] += pow(U[i][j],2);
+				}
 				U_sq[i] /= N;
 			}
 			return U_sq;
@@ -161,16 +165,19 @@ class AdjacencyMatrix{
 		}
 
         void updateAdj(const vector<bool> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
-	
-	 vector<double> U_sq = U_squared(U);
+
+	//vector<double> U_sq = U_squared(U);
 
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
 
-         			//printf("\n %f, %f",data[i][j], U_sq[j]);
+         			//printf("%f, %f, %d\n",data[0][2], trace[0], spikes[2] ? 1 : 0);
 
-         			data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*trace[i]*(2*spikes[j] - 1)*sqrt(pow(U[i][j], 2)/(pow(U[i][j],2) + U_sq[j]));
-         			data[i][j] = max(-1.0,min(1.0,data[i][j]));
+
+				//printf("\n %f, %f, %f, %f, %f, %f", data[i][j], reg, trace[i], lr, U[i][j], U_sq[j]);
+         			data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*(trace[i]*spikes[j] - U[j][i]);
+
+				data[i][j] = max(-1.0,min(1.0,data[i][j]));
             	}
             }
         }

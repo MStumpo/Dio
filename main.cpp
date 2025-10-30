@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     int epochs = 1;
     vector<pair<vector<bool>, vector<bool>>> dataset;
     vector<pair<vector<bool>, vector<bool>>> dataset_test;
-
+    bool optimize = false;
 
     for (int i = 1; i < argc; i++) {
         for(int j = 0; j <networkArgs.size(); j++){
@@ -72,7 +72,10 @@ int main(int argc, char *argv[]){
         }else if (string(argv[i]) == "--dataset-test"){
             dataset_test = readDatasetFile(argv[i+1]);
             i++;
-        }else{
+        }else if (string(argv[i]) == "--optimize"){
+	    optimize = true;
+	}
+	else{
 	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
             printf("%s\n", string(argv[i]).c_str());
 	}
@@ -86,7 +89,7 @@ int main(int argc, char *argv[]){
 
 	Network network = Network(networkArgs);
     this_thread::sleep_for(chrono::seconds(10));
-    network.runFull(dataset, dataset_test, epochs);
+    network.runFull(dataset, dataset_test, epochs, true, optimize);
 
     network.printAdjMatrix();
 

@@ -8,6 +8,7 @@
 #include <cstdio>
 
 #include "adjMatrix.cpp"
+#include "hyperparam.cpp"
 using namespace std;
 
 
@@ -37,10 +38,10 @@ class Network{
 			trace[i] = trace[i]*(1-decay) + decay*spikes[i];
 		}
 		for(int i=0; i < U.size(); i++){
-			U[i][i] = U[i][i]*(1-U_decay) + U_decay*trace[i]*spikes[i];
+			U[i][i] = U[i][i]*(1-U_decay) + U_decay*trace[i]*(2*spikes[i] -1);
 			for(int j=0; j < i; j++){
-				U[i][j] = U[i][j]*(1-U_decay) + U_decay*trace[i]*spikes[j];
-				U[j][i] = U[j][i]*(1-U_decay) + U_decay*trace[j]*spikes[i];
+				U[i][j] = U[i][j]*(1-U_decay) + U_decay*trace[i]*(2*spikes[j] -1);
+				U[j][i] = U[j][i]*(1-U_decay) + U_decay*trace[j]*(2*spikes[i] -1);
 			}
 		}
         }
@@ -50,15 +51,11 @@ class Network{
             mt19937 gen(random_device{}());
             uniform_real_distribution<double> unif(0.0,1.0);
             vector<double> newStates(neurons.size(), 0.0);
-            for (int i=0; i < adjMatrix.rows(); i++){
-                if(neurons[i]){
-                    for(int j=0; j < adjMatrix.cols(); j++){
-                        newStates[j] += adjMatrix[i][j]*(determinism + (unif(gen) < abs(adjMatrix[i][j]) ? 1 : 0)*((1/abs(adjMatrix[i][j])) - determinism));
-                    }
+            for (int j=0; j < adjMatrix.cols(); j++){
+                for(int i=0; i < adjMatrix.rows(); i++){
+                    if (neurons[i]) newStates[j] += (unif(gen) < abs(adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? 1 : -1) : determinism*adjMatrix[i][j]);
                 }
-            }
-            for (int i = 0; i < newStates.size(); i++) {
-                neurons[i] = (newStates[i] >= firing_value) ? true : false;
+		neurons[j] = (newStates[j] >= firing_value) ? true : false;
             }
         }
 
@@ -116,19 +113,43 @@ class Network{
             }
         }
 
-        void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true){
+        void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true, bool optimize = true){
 
             FILE* f = fopen("outputs/output.txt", "w");
 
             int score = 0;
             int scoreC = 0;
-            for(int epoch = 0; epoch < epochs; epoch++){
+		//optimizable specs: time_window, null_window, decay, U_decay,lr, reg, determinism, firing_value
+		vector<ParamSpec> specs = { //min, max, log_scale, is_int
+			{1, 50, false, true},
+			{0, 10, false, true},
+			{0, 1, false, false},
+			{0, 1, false, false},
+			{0.00000000001, 1, true, false},
+			{0.00000000001, 1, true, false},
+			{0,1, false, false},
+			{0,1, false, false}
+		};
+		HyperOptimizer opt(specs);
+		auto cand = opt.propose();
 
+            for(int epoch = 0; epoch < epochs; epoch++){
                 if(ds_shuffle){
                     mt19937 g(random_device{}());
                     shuffle(dataset.begin(), dataset.end(), g);
                     shuffle(dataset_test.begin(), dataset_test.end(), g);
                 }
+		if(optimize){
+			auto cand = opt.propose();
+			this->timeWindow = (int) cand[0];
+			this->null_window = (int) cand[1];
+			this->decay = cand[2];
+			this->U_decay = cand[3];
+			this->lr = cand[4];
+			this->reg = cand[5];
+			this->determinism = cand[6];
+			this->firing_value = cand[7];
+		}
 
                 for(const auto& datapoint:dataset){
                     for(int timestep = 0; timestep < null_window+timeWindow;timestep ++){
@@ -136,13 +157,15 @@ class Network{
                             for(int i = 0; i < datapoint.first.size(); i++){
                                 neurons[i] = datapoint.first[i];
                             }
-                            for(int i = 0; i < datapoint.second.size(); i++){
+                            /*for(int i = 0; i < datapoint.second.size(); i++){
                                 neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
-                            }
+                            }*/
                         }
-			updateTrace(neurons);
                         neuronFiring();
-                        //updateTrace(neurons);
+			updateTrace(neurons);
+			for(int i = 0; i < datapoint.second.size(); i++){
+				neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+			}
                         adjMatrix.updateAdj(neurons, trace, U, reg, lr);
 
                         printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
@@ -157,6 +180,8 @@ class Network{
                     }
                 }
 
+		score = 0;
+		scoreC = 0;
                 for(const auto& datapoint:dataset_test){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
                         if(timestep >= null_window){
@@ -165,8 +190,8 @@ class Network{
                             }
                         }
                         neuronFiring();
-                        //updateTrace(neurons, true);
-                        //adjMatrix.updateAdj(neurons, trace, U, reg, lr);
+                        updateTrace(neurons);
+                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
                         if(timestep >= null_window){
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
@@ -189,9 +214,13 @@ class Network{
                         }
                     }
                 }
+		if(optimize){
+			opt.update(cand, (double)score/scoreC);
+			for(double d : cand) printf("%f||", d);
+			printf("\n");
+		}
             }
-
-            }
+        }
 
 
 
@@ -293,6 +322,5 @@ class Network{
                     }
                 }
             }
-        
         }
 };
