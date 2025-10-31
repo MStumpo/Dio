@@ -142,7 +142,7 @@ class AdjacencyMatrix{
 		}
 	public:
 
-    	vector<double> operator[](size_t row){
+    	vector<double>& operator[](size_t row){
     		return data[row];
     	}
 
@@ -164,21 +164,16 @@ class AdjacencyMatrix{
 
 		}
 
-        void updateAdj(const vector<bool> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
-
-	//vector<double> U_sq = U_squared(U);
-
+      void updateAdj(const vector<uint8_t> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
+		//vector<double> U_sq = U_squared(U);
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
-
          			//printf("%f, %f, %d\n",data[0][2], trace[0], spikes[2] ? 1 : 0);
 
+		         	data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*spikes[j]*U[i][j];
 
-				//printf("\n %f, %f, %f, %f, %f, %f", data[i][j], reg, trace[i], lr, U[i][j], U_sq[j]);
-         			data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*(trace[i]*spikes[j] - U[j][i]);
-
-				data[i][j] = max(-1.0,min(1.0,data[i][j]));
+						data[i][j] = max(-1.0,min(1.0,data[i][j]));
             	}
             }
-        }
+      }
 };

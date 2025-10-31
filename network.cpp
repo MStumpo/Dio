@@ -17,7 +17,7 @@ using namespace std;
 class Network{
 
     private:
-        vector<bool> neurons;
+        vector<uint8_t> neurons;
         vector<double> trace;
 	vector<vector<double>> U;
 
@@ -26,22 +26,22 @@ class Network{
         int timeWindow = 10;
         int null_window = 10;
         double decay = 0.01;
-	double U_decay = 0.01;
-	double lr = 0.01;
+	   double U_decay = 0.01;
+	   double lr = 0.01;
         double determinism = 0.5;
         double firing_value = 1.0;
 
         //uniform_real_distribution<double> unif;
 
-        void updateTrace(const vector<bool> spikes){
+        void updateTrace(const vector<uint8_t> spikes){
 		for(int i=0; i < trace.size(); i++){
-			trace[i] = trace[i]*(1-decay) + decay*spikes[i];
+			trace[i] = trace[i]*(1-exp(-decay)) + decay*spikes[i];
 		}
 		for(int i=0; i < U.size(); i++){
-			U[i][i] = U[i][i]*(1-U_decay) + U_decay*trace[i]*(2*spikes[i] -1);
+			U[i][i] = U[i][i]*(1-exp(-U_decay)) + U_decay*trace[i]*2*(spikes[i] -0.5);
 			for(int j=0; j < i; j++){
-				U[i][j] = U[i][j]*(1-U_decay) + U_decay*trace[i]*(2*spikes[j] -1);
-				U[j][i] = U[j][i]*(1-U_decay) + U_decay*trace[j]*(2*spikes[i] -1);
+				U[i][j] = U[i][j]*(1-exp(-U_decay)) + U_decay*trace[i]*2*(spikes[j] -0.5);
+				U[j][i] = U[j][i]*(1-exp(-U_decay)) + U_decay*trace[j]*2*(spikes[i] -0.5);
 			}
 		}
         }
@@ -50,12 +50,14 @@ class Network{
 
             mt19937 gen(random_device{}());
             uniform_real_distribution<double> unif(0.0,1.0);
-            vector<double> newStates(neurons.size(), 0.0);
+            vector<double> newStates(neurons.size());
+
             for (int j=0; j < adjMatrix.cols(); j++){
+                newStates[j] = (neurons[j] ? 1.0 : 0.0);
                 for(int i=0; i < adjMatrix.rows(); i++){
-                    if (neurons[i]) newStates[j] += (unif(gen) < abs(adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? 1 : -1) : determinism*adjMatrix[i][j]);
+                    if (neurons[i]) newStates[j] += (unif(gen) > adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? -1 : 1) : determinism*adjMatrix[i][j];
                 }
-		neurons[j] = (newStates[j] >= firing_value) ? true : false;
+		        neurons[j] = (newStates[j] >= firing_value) ? 1 : 0;
             }
         }
 
@@ -72,7 +74,7 @@ class Network{
 
             for(auto& pair : networkArgs){
                 if(pair.first == "--neuron-size"){
-                    neurons.assign(get<int>(pair.second), false);
+                    this->neurons.assign(get<int>(pair.second), 0);
                     trace = vector<double>(get<int>(pair.second), 0.0);
                     U = vector<vector<double>>(get<int>(pair.second), vector<double>(get<int>(pair.second),0.0));
 		    printf("\nneurons : %d", get<int>(pair.second));
@@ -113,7 +115,7 @@ class Network{
             }
         }
 
-        void runFull(vector<pair<vector<bool>, vector<bool>>> dataset, vector<pair<vector<bool>, vector<bool>>> dataset_test, int epochs=10, bool ds_shuffle=true, bool optimize = true){
+        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, bool optimize = true){
 
             FILE* f = fopen("outputs/output.txt", "w");
 
@@ -153,23 +155,16 @@ class Network{
 
                 for(const auto& datapoint:dataset){
                     for(int timestep = 0; timestep < null_window+timeWindow;timestep ++){
-                        if(timestep >= null_window){
-                            for(int i = 0; i < datapoint.first.size(); i++){
-                                neurons[i] = datapoint.first[i];
-                            }
-                            /*for(int i = 0; i < datapoint.second.size(); i++){
-                                neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
-                            }*/
-                        }
+                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
+                        
                         neuronFiring();
-			updateTrace(neurons);
-			for(int i = 0; i < datapoint.second.size(); i++){
-				neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
-			}
+                        //This part is so the trace knows it
+                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
+            			for(int i = 0; i < datapoint.second.size(); i++) neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+                        updateTrace(neurons);
                         adjMatrix.updateAdj(neurons, trace, U, reg, lr);
 
                         printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
-
                         if(timestep < null_window){
                             printf("|%d|null    ", epoch);
                         }else{
@@ -177,6 +172,7 @@ class Network{
 
                         }
                         printf("|%f\n", (double) score/scoreC);
+                        //printUMatrix();
                     }
                 }
 
@@ -184,14 +180,13 @@ class Network{
 		scoreC = 0;
                 for(const auto& datapoint:dataset_test){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
-                        if(timestep >= null_window){
-                            for(int i = 0; i < datapoint.first.size(); i++){
-                                neurons[i] = datapoint.first[i];
-                            }
-                        }
+                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++)neurons[i] = datapoint.first[i];
+                        
                         neuronFiring();
+                         //This part is so the trace knows it
+                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
                         updateTrace(neurons);
-                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
+                        //adjMatrix.updateAdj(neurons, trace, U, reg, lr);
                         if(timestep >= null_window){
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
@@ -222,62 +217,7 @@ class Network{
             }
         }
 
-
-
-        //TRAIN AND TEST ARE OUTDATED
-        void train(vector<pair<vector<bool>, vector<bool>>> dataset, int epochs = 1){
-
-            for (int epoch = 0; epoch < epochs; epoch++)
-            {
-                for(const auto& datapoint : dataset){
-                    for(int timestep = 0; timestep < null_window; timestep ++){
-                        neuronFiring();
-                    }
-                    for(int timestep = 0; timestep < timeWindow; timestep++){
-                        for(int i = 0; i < datapoint.first.size(); i++){
-                            neurons[i] = datapoint.first[i];
-                        }
-                        neuronFiring();
-                        for(int i = 0; i < datapoint.first.size(); i++){
-                            neurons[i] = datapoint.first[i];
-                        }
-                        for(int i = 0; i < datapoint.second.size(); i++){
-                            neurons[neurons.size() - datapoint.second.size() + i] = datapoint.second[i];
-                        }
-                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
-                    }
-                }
-            }
-        }
-        void test(vector<pair<vector<bool>, vector<bool>>> dataset, int epochs = 1){
-
-            double score;
-            for (int epoch = 0; epoch < epochs; epoch++)
-            {
-                score = 0;
-                for(const auto& datapoint : dataset){
-                    for(int timestep = 0; timestep < null_window; timestep ++) neuronFiring();
-                    for(int timestep = 0; timestep < timeWindow; timestep++){
-                        for(int i = 0; i < datapoint.first.size(); i++){
-                            neurons[i] = datapoint.first[i];
-                        }
-                        neuronFiring();
-                        for(int i = 0; i < datapoint.second.size(); i++){
-                            if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
-                                score += 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
-                            }else{
-                                score -= 1.0/((double)datapoint.second.size()*timeWindow*(double)dataset.size());
-                            }
-                        }
-                    }
-                }
-                printf("\nEPOCH %d, score: %f", epoch+1, score);
-            }
-            printf("\n");
-
-        }
-
-        void validate(vector<bool> sample, vector<bool> target, int iterations = -1){
+        void validate(vector<uint8_t> sample, vector<uint8_t> target, int iterations = -1){
 
             if(iterations == -1){
                 iterations = timeWindow;
@@ -310,11 +250,21 @@ class Network{
                 printf("\n");
             }
         }
+        void printUMatrix(int width=1, int decimals=2) {
+            for (int i = 0; i < U.size(); ++i) {
+                for (int j = 0; j < U[i].size(); ++j) {
+                if (U[i][j] > 0) {
+                    printf(" ");  // This adds a space before negative numbers
+                }
+                    printf("%-*.*f ", width, decimals, U[i][j]);
+                }
+                printf("\n");
+            }
+            printf("\n");
+        }
         void printNetwork(vector<int> pos, bool new_line = false){
-
             for(int b = 0; b < neurons.size(); b++){
                 printf("%d", neurons[b] ? true : false);
-
                 for(int p = 0; p < pos.size(); p++){
                     if(b == pos[p]){
                         printf("|");

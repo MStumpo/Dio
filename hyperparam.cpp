@@ -43,12 +43,9 @@ struct HyperOptimizer {
             double value = specs[i].log_scale ? std::log(candidate[i]) : candidate[i];
             //double value = specs[i];
 	    value += dist(rng) * step_sizes[i];
-	    printf("\n %f, %f", value, step_sizes[i]);
-            // Clamp to bounds and transform back
-            candidate[i] = std::clamp((specs[i].log_scale ? std::exp(value) : value), specs[i].min_val, specs[i].max_val);
 
-            if (specs[i].is_int)
-                candidate[i] = std::round(candidate[i]);
+        candidate[i] = std::clamp((specs[i].log_scale ? std::exp(value) : value), specs[i].min_val, specs[i].max_val);
+        if (specs[i].is_int) candidate[i] = std::round(candidate[i]);
         }
         return candidate;
     }
@@ -60,7 +57,7 @@ struct HyperOptimizer {
             best_score = score;
         }
         for (int i = 0; i < step_sizes.size(); i++){
-            step_sizes[i] = step_sizes[i]*(1.05-best_score);
-	}
+            step_sizes[i] = min(step_sizes[i]*(1.0-score),1.0);
+	    }
     }
 };

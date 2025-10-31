@@ -6,8 +6,8 @@
 #include <chrono>
 #include <thread>
 
-vector<pair<vector<bool>, vector<bool>>> readDatasetFile(const string& filename){
-    vector<pair<vector<bool>, vector<bool>>> dataset;
+vector<pair<vector<uint8_t>, vector<uint8_t>>> readDatasetFile(const string& filename){
+    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
     ifstream infile(filename);
     string line;
     while(getline(infile,line)){
@@ -38,8 +38,8 @@ int main(int argc, char *argv[]){
                                                   {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0} };
 
     int epochs = 1;
-    vector<pair<vector<bool>, vector<bool>>> dataset;
-    vector<pair<vector<bool>, vector<bool>>> dataset_test;
+    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
+    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test;
     bool optimize = false;
 
     for (int i = 1; i < argc; i++) {
