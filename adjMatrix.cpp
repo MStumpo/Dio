@@ -109,8 +109,6 @@ class AdjacencyMatrix{
 		    		max_val = max(max_val, fabs(val));
 		    	}
 		    }
-
-
 		    return scalarMul(T, 1/max_val);
 		}
 		vector<double> colEntropy(const vector<vector<double>>& W){
@@ -166,12 +164,14 @@ class AdjacencyMatrix{
 
       void updateAdj(const vector<uint8_t> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
 		//vector<double> U_sq = U_squared(U);
+      //vector<vector<double>> C = computeTotalContribution(data, 0.5, 5);
          for(int i = 0; i < data.size(); i++){
          		for(int j=0; j < data[i].size(); j++){
          			//printf("%f, %f, %d\n",data[0][2], trace[0], spikes[2] ? 1 : 0);
 
-		         	data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*spikes[j]*U[i][j];
+		         	//data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*spikes[j]*(U[i][j] - sqrt(U_sq[j]));
 
+		         	data[i][j] += lr*(U[i][j] - reg*data[i][j]*pow(trace[i],2)); 
 						data[i][j] = max(-1.0,min(1.0,data[i][j]));
             	}
             }

@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
     int epochs = 1;
     vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
     vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test;
-    bool optimize = false;
+    int optimize = -1;
 
     for (int i = 1; i < argc; i++) {
         for(int j = 0; j <networkArgs.size(); j++){
@@ -73,8 +73,9 @@ int main(int argc, char *argv[]){
             dataset_test = readDatasetFile(argv[i+1]);
             i++;
         }else if (string(argv[i]) == "--optimize"){
-	    optimize = true;
-	}
+	       optimize = stoi(argv[i+1]);
+           i++;
+	   }
 	else{
 	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
             printf("%s\n", string(argv[i]).c_str());

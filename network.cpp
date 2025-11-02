@@ -50,10 +50,10 @@ class Network{
 
             mt19937 gen(random_device{}());
             uniform_real_distribution<double> unif(0.0,1.0);
-            vector<double> newStates(neurons.size());
+            vector<double> newStates(neurons.size(), 0.0);
 
             for (int j=0; j < adjMatrix.cols(); j++){
-                newStates[j] = (neurons[j] ? 1.0 : 0.0);
+                //newStates[j] = (neurons[j] ? 1.0 : 0.0);
                 for(int i=0; i < adjMatrix.rows(); i++){
                     if (neurons[i]) newStates[j] += (unif(gen) > adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? -1 : 1) : determinism*adjMatrix[i][j];
                 }
@@ -115,7 +115,7 @@ class Network{
             }
         }
 
-        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, bool optimize = true){
+        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, int optimize = -1){
 
             FILE* f = fopen("outputs/output.txt", "w");
 
@@ -141,17 +141,19 @@ class Network{
                     shuffle(dataset.begin(), dataset.end(), g);
                     shuffle(dataset_test.begin(), dataset_test.end(), g);
                 }
-		if(optimize){
-			auto cand = opt.propose();
-			this->timeWindow = (int) cand[0];
-			this->null_window = (int) cand[1];
-			this->decay = cand[2];
-			this->U_decay = cand[3];
-			this->lr = cand[4];
-			this->reg = cand[5];
-			this->determinism = cand[6];
-			this->firing_value = cand[7];
-		}
+        		if(epoch%optimize == 0){
+        			auto cand = opt.propose();
+        			this->timeWindow = (int) cand[0];
+        			this->null_window = (int) cand[1];
+        			this->decay = cand[2];
+        			this->U_decay = cand[3];
+        			this->lr = cand[4];
+        			this->reg = cand[5];
+        			this->determinism = cand[6];
+        			this->firing_value = cand[7];
+                    score = 0;
+                    scoreC = 0;
+        		}
 
                 for(const auto& datapoint:dataset){
                     for(int timestep = 0; timestep < null_window+timeWindow;timestep ++){
@@ -176,8 +178,6 @@ class Network{
                     }
                 }
 
-		score = 0;
-		scoreC = 0;
                 for(const auto& datapoint:dataset_test){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
                         if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++)neurons[i] = datapoint.first[i];
@@ -209,7 +209,7 @@ class Network{
                         }
                     }
                 }
-		if(optimize){
+		if(epoch%optimize == 0){
 			opt.update(cand, (double)score/scoreC);
 			for(double d : cand) printf("%f||", d);
 			printf("\n");
