@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <omp.h>
 #include <cstdio>
+#include <ctime>
 
 #include "adjMatrix.cpp"
 #include "hyperparam.cpp"
@@ -26,22 +27,24 @@ class Network{
         int timeWindow = 10;
         int null_window = 10;
         double decay = 0.01;
-	   double U_decay = 0.01;
-	   double lr = 0.01;
+	double U_decay = 0.01;
+	double lr = 0.01;
         double determinism = 0.5;
         double firing_value = 1.0;
+	double entropy_factor = 1.0;
 
         //uniform_real_distribution<double> unif;
 
         void updateTrace(const vector<uint8_t> spikes){
-		for(int i=0; i < trace.size(); i++){
-			trace[i] = trace[i]*(1-exp(-decay)) + decay*spikes[i];
-		}
-		for(int i=0; i < U.size(); i++){
-			U[i][i] = U[i][i]*(1-exp(-U_decay)) + U_decay*trace[i]*2*(spikes[i] -0.5);
-			for(int j=0; j < i; j++){
+		size_t N = U.size();
+
+		#pragma omp parallel for
+		for(int i = 0; i < N; i++) trace[i] = trace[i]*(1-exp(-decay)) + decay*spikes[i];
+
+		#pragma omp parallel for collapse(2)
+		for(int i=0; i < N; i++){
+			for(int j=0; j < N; j++){
 				U[i][j] = U[i][j]*(1-exp(-U_decay)) + U_decay*trace[i]*2*(spikes[j] -0.5);
-				U[j][i] = U[j][i]*(1-exp(-U_decay)) + U_decay*trace[j]*2*(spikes[i] -0.5);
 			}
 		}
         }
@@ -52,12 +55,16 @@ class Network{
             uniform_real_distribution<double> unif(0.0,1.0);
             vector<double> newStates(neurons.size(), 0.0);
 
-            for (int j=0; j < adjMatrix.cols(); j++){
+	    size_t N = adjMatrix.cols();
+
+	    #pragma omp parallel for
+            for (int j=0; j < N; j++){
                 //newStates[j] = (neurons[j] ? 1.0 : 0.0);
-                for(int i=0; i < adjMatrix.rows(); i++){
-                    if (neurons[i]) newStates[j] += (unif(gen) > adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? -1 : 1) : determinism*adjMatrix[i][j];
+		double newState = 0.0;
+                for(int i=0; i < N; i++){
+                    if (neurons[i]) newState += (unif(gen) > adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? -1 : 1) : determinism*adjMatrix[i][j];
                 }
-		        neurons[j] = (newStates[j] >= firing_value) ? 1 : 0;
+		neurons[j] = (newState >= firing_value) ? 1 : 0;
             }
         }
 
@@ -109,31 +116,39 @@ class Network{
                     this->null_window = get<int>(pair.second);
                     printf("\nnull_window: %d", this->null_window);
                 }
+		else if(pair.first == "--entropy-factor"){
+		    this->entropy_factor = get<double>(pair.second);
+		    printf("\nentropy_factor: %f", this->entropy_factor);
+		}
 		else{
 		   printf("\n!!!! UNKNOWN ARG PASSED TO NETWORK !!!! : %s ", pair.first.c_str());
 		}
             }
         }
 
-        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, int optimize = -1){
+        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, int optimize = -1, bool verbose = false){
 
-            FILE* f = fopen("outputs/output.txt", "w");
+
+	    FILE* f = []{ char t[32], path[64]; time_t tt=time(nullptr); strftime(t, sizeof t, "%j_%H.%M", localtime(&tt)); snprintf(path, sizeof path, "outputs/%s.txt", t); return fopen(path, "w"); }();
+
+            fprintf(f,"Epoch, score, time_window, null_window, decay, U_decay, lr, reg, determinism, firing_value\n");
 
             int score = 0;
             int scoreC = 0;
 		//optimizable specs: time_window, null_window, decay, U_decay,lr, reg, determinism, firing_value
-		vector<ParamSpec> specs = { //min, max, log_scale, is_int
-			{1, 50, false, true},
-			{0, 10, false, true},
-			{0, 1, false, false},
-			{0, 1, false, false},
-			{0.00000000001, 1, true, false},
-			{0.00000000001, 1, true, false},
-			{0,1, false, false},
-			{0,1, false, false}
-		};
-		HyperOptimizer opt(specs);
-		auto cand = opt.propose();
+	    vector<ParamSpec> specs = { //min, max, log_scale, is_int
+		{1, 50, false, true},
+		{0, 10, false, true},
+		{0, 1, false, false},
+		{0, 1, false, false},
+		{0.00000000001, 1, true, false},
+		{0.000001, 1, true, false},
+		{0,1, false, false},
+		{0,1, false, false},
+		{-3.0,3.0,false,false}
+	    };
+	    HyperOptimizer opt(specs);
+	    auto cand = opt.propose();
 
             for(int epoch = 0; epoch < epochs; epoch++){
                 if(ds_shuffle){
@@ -141,53 +156,71 @@ class Network{
                     shuffle(dataset.begin(), dataset.end(), g);
                     shuffle(dataset_test.begin(), dataset_test.end(), g);
                 }
-        		if(epoch%optimize == 0){
-        			auto cand = opt.propose();
-        			this->timeWindow = (int) cand[0];
-        			this->null_window = (int) cand[1];
-        			this->decay = cand[2];
-        			this->U_decay = cand[3];
-        			this->lr = cand[4];
-        			this->reg = cand[5];
-        			this->determinism = cand[6];
-        			this->firing_value = cand[7];
-                    score = 0;
-                    scoreC = 0;
-        		}
+        	if(epoch%optimize == 0){
+			cand = opt.propose();
+			this->timeWindow = (int) cand[0];
+			this->null_window = (int) cand[1];
+			this->decay = cand[2];
+			this->U_decay = cand[3];
+			this->lr = cand[4];
+			this->reg = cand[5];
+			this->determinism = cand[6];
+			this->firing_value = cand[7];
+			this->entropy_factor = cand[8];
+		        score = 0;
+                	scoreC = 0;
+		}
 
                 for(const auto& datapoint:dataset){
                     for(int timestep = 0; timestep < null_window+timeWindow;timestep ++){
-                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-                        
+			if(timestep >= null_window){
+				#pragma omp parallel for
+				for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
+			}
                         neuronFiring();
                         //This part is so the trace knows it
-                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-            			for(int i = 0; i < datapoint.second.size(); i++) neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+			if(timestep >= null_window){
+				#pragma omp parallel
+				{
+					#pragma omp for
+					for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
+					#pragma omp for
+					for(int i = 0; i < datapoint.second.size(); i++) neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+				}
+			}
                         updateTrace(neurons);
-                        adjMatrix.updateAdj(neurons, trace, U, reg, lr);
+                        adjMatrix.updateAdj(neurons, trace, U, reg, lr, entropy_factor);
 
-                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
-                        if(timestep < null_window){
-                            printf("|%d|null    ", epoch);
-                        }else{
-                            printf("|%d|training", epoch);
+			if(verbose){
+	                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
 
-                        }
-                        printf("|%f\n", (double) score/scoreC);
-                        //printUMatrix();
+				if(timestep < null_window){
+	                            printf("|%d|null    ", epoch);
+	                        }else{
+	                            printf("|%d|training", epoch);
+	                        }
+	                        printf("|%f\n", (double) score/scoreC);
+	                        //printUMatrix();
+			}
                     }
                 }
 
                 for(const auto& datapoint:dataset_test){
                     for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
-                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++)neurons[i] = datapoint.first[i];
-                        
-                        neuronFiring();
+                        if(timestep >= null_window){
+				#pragma omp parallel for
+				for(int i = 0; i < datapoint.first.size(); i++)neurons[i] = datapoint.first[i];
+                        }
+			neuronFiring();
                          //This part is so the trace knows it
-                        if(timestep >= null_window) for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-                        updateTrace(neurons);
+                        if(timestep >= null_window){
+				#pragma omp parallel for
+				 for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
+                        }
+			updateTrace(neurons);
                         //adjMatrix.updateAdj(neurons, trace, U, reg, lr);
                         if(timestep >= null_window){
+			    #pragma omp parallel for
                             for(int i = 0; i < datapoint.second.size(); i++){
                                 if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
                                     score ++;
@@ -198,21 +231,25 @@ class Network{
                             }
                         }
 
-                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
+			if(verbose){
 
-                        if(timestep < null_window){
-                            printf("|%d|null    |%f|\n", epoch, (double) score/scoreC);
-                        }else{
-                            printf("|%d|testing |%f|", epoch, (double) score/scoreC);
-                            for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
-                            printf("\n");
-                        }
+	                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
+
+	                        if(timestep < null_window){
+	                            printf("|%d|null    |%f|\n", epoch, (double) score/scoreC);
+	                        }else{
+	                            printf("|%d|testing |%f|", epoch, (double) score/scoreC);
+	                            for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
+	                            printf("\n");
+	                        }
+			}
                     }
                 }
 		if(epoch%optimize == 0){
 			opt.update(cand, (double)score/scoreC);
-			for(double d : cand) printf("%f||", d);
-			printf("\n");
+			fprintf(f, "%d,%f,", epoch, (double)score/scoreC);
+			for(double d : cand) fprintf(f, "%f,", d);
+			fprintf(f,"\n");
 		}
             }
         }

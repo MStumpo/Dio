@@ -162,18 +162,24 @@ class AdjacencyMatrix{
 
 		}
 
-      void updateAdj(const vector<uint8_t> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr){
-		//vector<double> U_sq = U_squared(U);
+      void updateAdj(const vector<uint8_t> spikes ,const vector<double> trace, const vector<vector<double>> U, double reg, double lr, double entropy_factor){
+	size_t N = data.size();
+	vector<double> E = colEntropy(data);
       //vector<vector<double>> C = computeTotalContribution(data, 0.5, 5);
-         for(int i = 0; i < data.size(); i++){
-         		for(int j=0; j < data[i].size(); j++){
+	#pragma omp for collapse(2) 
+        for(int i = 0; i < N; i++){
+         		for(int j=0; j < N; j++){
          			//printf("%f, %f, %d\n",data[0][2], trace[0], spikes[2] ? 1 : 0);
 
-		         	//data[i][j] = data[i][j]*(1-reg*trace[i]) + lr*spikes[j]*(U[i][j] - sqrt(U_sq[j]));
+		         	//THIS ONE IS THE ONE THAT GOT THE GOOD RESULTS :3333
+		         	//data[i][j] += lr*((spikes[j] ? 1.0 : 0.0)*U[i][j]*pow(E[j], entropy_factor) - reg*data[i][j]*pow(trace[i],2));
 
-		         	data[i][j] += lr*(U[i][j] - reg*data[i][j]*pow(trace[i],2)); 
-						data[i][j] = max(-1.0,min(1.0,data[i][j]));
-            	}
+				data[i][j] += lr*(spikes[j]*U[i][j]*pow(E[j],entropy_factor) - reg*data[i][j]*pow(trace[i],2));
+
+				data[i][j] = max(-1.0,min(1.0,data[i][j]));
+
+
+		}
             }
       }
 };

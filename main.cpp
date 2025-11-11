@@ -35,12 +35,13 @@ int main(int argc, char *argv[]){
     using Args = variant<int, double, bool>;
 
     vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--lr", 0.01}, {"--decay",0.01}, {"--u-decay", 0.01},
-                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0} };
+                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}, {"--entropy-factor", 0.0}};
 
     int epochs = 1;
     vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
     vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test;
     int optimize = -1;
+    bool verbose = false;
 
     for (int i = 1; i < argc; i++) {
         for(int j = 0; j <networkArgs.size(); j++){
@@ -75,7 +76,9 @@ int main(int argc, char *argv[]){
         }else if (string(argv[i]) == "--optimize"){
 	       optimize = stoi(argv[i+1]);
            i++;
-	   }
+	}else if(string(argv[i]) == "--verbose"){
+		verbose = true;
+	}
 	else{
 	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
             printf("%s\n", string(argv[i]).c_str());
@@ -88,9 +91,9 @@ int main(int argc, char *argv[]){
     }
 
 
-	Network network = Network(networkArgs);
+    Network network = Network(networkArgs);
     this_thread::sleep_for(chrono::seconds(10));
-    network.runFull(dataset, dataset_test, epochs, true, optimize);
+    network.runFull(dataset, dataset_test, epochs, true, optimize, verbose);
 
     network.printAdjMatrix();
 

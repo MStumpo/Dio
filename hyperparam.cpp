@@ -18,7 +18,7 @@
         std::mt19937 rng;
         std::normal_distribution<double> dist{0.0, 1.0};
 
-        HyperOptimizer(const std::vector<ParamSpec>& param_specs, double init_step = 0.1)
+        HyperOptimizer(const std::vector<ParamSpec>& param_specs, double init_step = 3)
             : specs(param_specs),
               params(param_specs.size()),
               step_sizes(param_specs.size(), init_step),
@@ -42,10 +42,11 @@
             for (size_t i = 0; i < specs.size(); ++i) {
                 double value = specs[i].log_scale ? std::log(candidate[i]) : candidate[i];
                 //double value = specs[i];
-        	    value += dist(rng) * step_sizes[i];
+        	value += dist(rng) * step_sizes[i]*(specs[i].log_scale ? std::exp(specs[i].max_val - specs[i].min_val) : specs[i].max_val -  specs[i].min_val);
 
-                candidate[i] = std::clamp((specs[i].log_scale ? std::exp(candidate[i]*0.3 + 0.7*value) : candidate[i]*0.3 + 0.7*value), specs[i].min_val, specs[i].max_val);
+                candidate[i] = std::clamp((specs[i].log_scale ? std::exp(candidate[i] + value) : candidate[i] + value), specs[i].min_val, specs[i].max_val);
                 if (specs[i].is_int) candidate[i] = std::round(candidate[i]);
+
             }
             return candidate;
         }
@@ -57,7 +58,8 @@
                 best_score = score;
             }
             for (int i = 0; i < step_sizes.size(); i++){
-                step_sizes[i] = min(step_sizes[i]*(1.4-score),3.0); //yes, not best_score because the algo is a bit chaotic and I want consistency
+                step_sizes[i] = min(max(step_sizes[i]*(1.0- score + best_score),10e-6), 3.0);
     	    }
+	    best_score *= 0.95;
         }
     };
