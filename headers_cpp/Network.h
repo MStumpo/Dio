@@ -7,13 +7,12 @@
 #include "HyperOptimizer.h"
 
 struct SharedNetwork;
-struct Network; 
+class Network; 
 struct Neuron {
     uint8_t value;
     double trace;
     std::vector<Network*> members;
-    Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr)
-        : value(v), trace(t), members({n}) {}
+    Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr);
 };
 using NeuronPointer = std::shared_ptr<Neuron>;
 
@@ -29,10 +28,9 @@ struct Edge {
 using EdgePointer = std::shared_ptr<Edge>;
 
 
-struct Network {
+class Network {
 private:
     SharedNetwork& shared;
-    std::vector<NeuronPointer> neurons;
     HyperOptimizer opt;
 
     class AdjMatrix {
@@ -53,6 +51,7 @@ private:
 
 public:
     HyperParameters hp;
+    std::vector<NeuronPointer> neurons;
 
     Network(SharedNetwork& s, const HyperParameters& hp_arg);
 

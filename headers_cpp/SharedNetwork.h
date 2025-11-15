@@ -8,7 +8,7 @@
 #include "Network.h"
 #include "DataTerminal.h"
 
-struct Network;
+class Network;
 struct Neuron;
 struct Edge;
 using NeuronPointer = std::shared_ptr<Neuron>;
@@ -20,6 +20,7 @@ struct SharedNetwork {
     vector<EdgePointer> edges;
     vector<Network*> sub_networks;
     vector<DataTerminal> terminals;
+    DatasetManager data_manager;
 
     // Node / Edge creation
     NeuronPointer makeNeuron(uint8_t v = false, Network* n = nullptr);

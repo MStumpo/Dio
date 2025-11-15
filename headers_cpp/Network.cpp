@@ -16,7 +16,7 @@ vector<double> Network::AdjMatrix::colEntropy() {
 
     for (size_t col = 0; col < N; col++) {
         for (size_t row = 0; row < N; row++) {
-            if (data[row][col]->value != 0.0 && data[row][col] != nullptr)
+            if (data[row][col]->value != 0.0)
                 entropy[col] += -abs(data[row][col]->value) * log(abs(data[row][col]->value));
         }
         entropy[col] /= N;
@@ -49,12 +49,10 @@ void Network::AdjMatrix::updateAdj() {
     #pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            if(data[i][j] != nullptr){
-                data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U *
-                    pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value *
-                    pow(parent.neurons[i]->trace, 2));
-                data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
-            }
+            data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U *
+                pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value *
+                pow(parent.neurons[i]->trace, 2));
+            data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
         }
     }
 }
@@ -70,10 +68,9 @@ Network::Network(SharedNetwork& s, const HyperParameters& hp_arg)
     }
 
     adj.initialize();
-    s.sub_networks.push_back(this);
+    //s.sub_networks.push_back(this);
 }
 
-bool Network::operator[](size_t i) const { return neurons[i] != nullptr; }
 size_t Network::size() const { return neurons.size(); }
 
 // ------------------- Printing -------------------
@@ -87,10 +84,6 @@ void Network::printAdjMatrix(int width, int decimals) {
         }
         printf("\n");
     }
-}
-
-void Network::printUMatrix(int width, int decimals) {
-    // Assuming you have a U matrix somewhere (not defined in your snippet)
 }
 
 void Network::printNetwork(const vector<int>& pos, bool new_line) {

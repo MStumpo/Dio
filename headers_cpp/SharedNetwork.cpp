@@ -6,7 +6,7 @@
 #include <cstdio>
 
 using namespace std;
-struct Network;
+class Network;
 struct Neuron;
 struct Edge;
 using NeuronPointer = std::shared_ptr<Neuron>;
