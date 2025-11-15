@@ -8,306 +8,119 @@
 #include <cstdio>
 #include <ctime>
 
-#include "adjMatrix.cpp"
-#include "hyperparam.cpp"
-using namespace std;
-
-
-//NOTE ABOUT vector<bool>: it returns a proxy element so setting refs causes bad behavior. copying and setting seems to be fine and for printing use vector[i] ? true : false
 //AdjMatrix[i][j] is i->j , row: sender , col: receiver
 class Network{
 
-    private:
-        vector<uint8_t> neurons;
-        vector<double> trace;
-	vector<vector<double>> U;
+private:
+	SharedNetwork& shared;
+	vector<NeuronPointer> neurons;
+	HyperOptimizer opt;
 
-        AdjacencyMatrix adjMatrix;
-        double reg  =0.0001;
-        int timeWindow = 10;
-        int null_window = 10;
-        double decay = 0.01;
-	double U_decay = 0.01;
-	double lr = 0.01;
-        double determinism = 0.5;
-        double firing_value = 1.0;
-	double entropy_factor = 1.0;
+	class AdjMatrix{
+	private:
+		Network& parent;
+		vector<vector<EdgePointer>> data;
+		vector<double> colEntropy(){
+		  	size_t N = data.size();
+		  	vector<double> entropy(N, 0.0);
 
-        //uniform_real_distribution<double> unif;
+		  	for(int col = 0; col < N; col++){
+		  		for(int row=0; row < N; row++){
+		  			if(data[row][col]->value != 0.0) entropy[col] += -abs(data[row][col]->value)*log(abs(data[row][col]->value));
+		  		}
+		  		entropy[col] /=N;
+		  	}
 
-        void updateTrace(const vector<uint8_t> spikes){
-		size_t N = U.size();
+		  	return entropy;
+		  }
+	public:
 
-		#pragma omp parallel for
-		for(int i = 0; i < N; i++) trace[i] = trace[i]*(1-exp(-decay)) + decay*spikes[i];
+		AdjMatrix(Network& parent_network) : parent(parent_network){}
 
-		#pragma omp parallel for collapse(2)
-		for(int i=0; i < N; i++){
-			for(int j=0; j < N; j++){
-				U[i][j] = U[i][j]*(1-exp(-U_decay)) + U_decay*trace[i]*2*(spikes[j] -0.5);
-			}
-		}
-        }
-
-        void neuronFiring(){
-
-            mt19937 gen(random_device{}());
-            uniform_real_distribution<double> unif(0.0,1.0);
-            vector<double> newStates(neurons.size(), 0.0);
-
-	    size_t N = adjMatrix.cols();
-
-	    #pragma omp parallel for
-            for (int j=0; j < N; j++){
-                //newStates[j] = (neurons[j] ? 1.0 : 0.0);
-		double newState = 0.0;
-                for(int i=0; i < N; i++){
-                    if (neurons[i]) newState += (unif(gen) > adjMatrix[i][j]) ? (adjMatrix[i][j] > 0 ? -1 : 1) : determinism*adjMatrix[i][j];
-                }
-		neurons[j] = (newState >= firing_value) ? 1 : 0;
-            }
-        }
-
-
-    public:
-
-        bool operator[](size_t i) const {
-            return neurons[i];
-        };
-
-        size_t size() const { return neurons.size(); }
-
-        Network(vector<pair<string, variant<int, double, bool>>> networkArgs) : adjMatrix(get<int>(networkArgs[0].second)){
-
-            for(auto& pair : networkArgs){
-                if(pair.first == "--neuron-size"){
-                    this->neurons.assign(get<int>(pair.second), 0);
-                    trace = vector<double>(get<int>(pair.second), 0.0);
-                    U = vector<vector<double>>(get<int>(pair.second), vector<double>(get<int>(pair.second),0.0));
-		    printf("\nneurons : %d", get<int>(pair.second));
-                }else if(pair.first == "--time-window"){
-                    this->timeWindow = get<int>(pair.second);
-                    printf("\ntimeWindow: %d", this->timeWindow);
-                }else if(pair.first == "--lr"){
-                    this->lr = get<double>(pair.second);
-                    printf("\nlr: %f", this->lr);
-                }
-                else if(pair.first == "--reg"){
-                    this->reg = get<double>(pair.second);
-                    printf("\nreg: %f", this->reg);
-                }
-                else if(pair.first == "--decay"){
-                    this->decay = get<double>(pair.second);
-                    printf("\ndecay: %f", this->decay);
-                }
-		else if(pair.first == "--u-decay"){
-		    this->U_decay = get<double>(pair.second);
-		    printf("\nU-decay: %f", this->U_decay);
-		}
-                else if(pair.first == "--determinism"){
-                    this->determinism = get<double>(pair.second);
-                    printf("\ndeterminism: %f", this->determinism);
-                }
-                else if(pair.first == "--firing-value"){
-                    this->firing_value = get<double>(pair.second);
-                    printf("\nfiring_value: %f", this->firing_value);
-                }
-                else if(pair.first == "--null-window"){
-                    this->null_window = get<int>(pair.second);
-                    printf("\nnull_window: %d", this->null_window);
-                }
-		else if(pair.first == "--entropy-factor"){
-		    this->entropy_factor = get<double>(pair.second);
-		    printf("\nentropy_factor: %f", this->entropy_factor);
-		}
-		else{
-		   printf("\n!!!! UNKNOWN ARG PASSED TO NETWORK !!!! : %s ", pair.first.c_str());
-		}
-            }
-        }
-
-        void runFull(vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset, vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test, int epochs=10, bool ds_shuffle=true, int optimize = -1, bool verbose = false){
-
-
-	    FILE* f = []{ char t[32], path[64]; time_t tt=time(nullptr); strftime(t, sizeof t, "%j_%H.%M", localtime(&tt)); snprintf(path, sizeof path, "outputs/%s.txt", t); return fopen(path, "w"); }();
-
-            fprintf(f,"Epoch, score, time_window, null_window, decay, U_decay, lr, reg, determinism, firing_value\n");
-
-            int score = 0;
-            int scoreC = 0;
-		//optimizable specs: time_window, null_window, decay, U_decay,lr, reg, determinism, firing_value
-	    vector<ParamSpec> specs = { //min, max, log_scale, is_int
-		{1, 50, false, true},
-		{0, 10, false, true},
-		{0, 1, false, false},
-		{0, 1, false, false},
-		{0.00000000001, 1, true, false},
-		{0.000001, 1, true, false},
-		{0,1, false, false},
-		{0,1, false, false},
-		{-3.0,3.0,false,false}
-	    };
-	    HyperOptimizer opt(specs);
-	    auto cand = opt.propose();
-
-            for(int epoch = 0; epoch < epochs; epoch++){
-                if(ds_shuffle){
-                    mt19937 g(random_device{}());
-                    shuffle(dataset.begin(), dataset.end(), g);
-                    shuffle(dataset_test.begin(), dataset_test.end(), g);
-                }
-        	if(epoch%optimize == 0){
-			cand = opt.propose();
-			this->timeWindow = (int) cand[0];
-			this->null_window = (int) cand[1];
-			this->decay = cand[2];
-			this->U_decay = cand[3];
-			this->lr = cand[4];
-			this->reg = cand[5];
-			this->determinism = cand[6];
-			this->firing_value = cand[7];
-			this->entropy_factor = cand[8];
-		        score = 0;
-                	scoreC = 0;
-		}
-
-                for(const auto& datapoint:dataset){
-                    for(int timestep = 0; timestep < null_window+timeWindow;timestep ++){
-			if(timestep >= null_window){
-				#pragma omp parallel for
-				for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-			}
-                        neuronFiring();
-                        //This part is so the trace knows it
-			if(timestep >= null_window){
-				#pragma omp parallel
-				{
-					#pragma omp for
-					for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-					#pragma omp for
-					for(int i = 0; i < datapoint.second.size(); i++) neurons[neurons.size() - datapoint.second.size()+i] = datapoint.second[i];
+		void initialize(){
+			mt19937 rng(rnd_device());
+			uniform_real_distribution<double> unif(-1.0, 1.0);
+			auto gen = [&](){ return unif(rng); };
+			data.resize(parent.neurons.size());
+			for(size_t i = 0; i < parent.neurons.size(); i++){
+				data[i].resize(parent.neurons.size());
+				for(size_t j = 0; j < parent.neurons.size(); j++){
+					auto e = make_shared<Edge>(parent.neurons[i], parent.neurons[j], gen());
+					data[i][j] = e;
+					parent.shared.edges.push_back(e);
 				}
 			}
-                        updateTrace(neurons);
-                        adjMatrix.updateAdj(neurons, trace, U, reg, lr, entropy_factor);
-
-			if(verbose){
-	                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
-
-				if(timestep < null_window){
-	                            printf("|%d|null    ", epoch);
-	                        }else{
-	                            printf("|%d|training", epoch);
-	                        }
-	                        printf("|%f\n", (double) score/scoreC);
-	                        //printUMatrix();
-			}
-                    }
-                }
-
-                for(const auto& datapoint:dataset_test){
-                    for(int timestep = 0; timestep < null_window+timeWindow; timestep ++){
-                        if(timestep >= null_window){
-				#pragma omp parallel for
-				for(int i = 0; i < datapoint.first.size(); i++)neurons[i] = datapoint.first[i];
-                        }
-			neuronFiring();
-                         //This part is so the trace knows it
-                        if(timestep >= null_window){
-				#pragma omp parallel for
-				 for(int i = 0; i < datapoint.first.size(); i++) neurons[i] = datapoint.first[i];
-                        }
-			updateTrace(neurons);
-                        //adjMatrix.updateAdj(neurons, trace, U, reg, lr);
-                        if(timestep >= null_window){
-			    #pragma omp parallel for
-                            for(int i = 0; i < datapoint.second.size(); i++){
-                                if(neurons[neurons.size() - datapoint.second.size() + i] == datapoint.second[i]){
-                                    score ++;
-                                }else{
-                                    score --;
-                                }
-                                scoreC++;
-                            }
-                        }
-
-			if(verbose){
-
-	                        printNetwork({static_cast<int>(datapoint.first.size()-1), static_cast<int>(neurons.size() - datapoint.second.size()-1)});
-
-	                        if(timestep < null_window){
-	                            printf("|%d|null    |%f|\n", epoch, (double) score/scoreC);
-	                        }else{
-	                            printf("|%d|testing |%f|", epoch, (double) score/scoreC);
-	                            for(int b = 0; b < datapoint.second.size(); b++) printf("%d", datapoint.second[b] ? 1:0);
-	                            printf("\n");
-	                        }
-			}
-                    }
-                }
-		if(epoch%optimize == 0){
-			opt.update(cand, (double)score/scoreC);
-			fprintf(f, "%d,%f,", epoch, (double)score/scoreC);
-			for(double d : cand) fprintf(f, "%f,", d);
-			fprintf(f,"\n");
 		}
-            }
-        }
+		void updateAdj(){
+				size_t N = data.size();
+				vector<double> E = colEntropy();
 
-        void validate(vector<uint8_t> sample, vector<uint8_t> target, int iterations = -1){
+				#pragma omp for collapse(2) 
+				for(int i = 0; i < N; i++){
+					for(int j=0; j < N; j++){
+         			//printf("%f, %f, %d\n",data[0][2], trace[0], spikes[2] ? 1 : 0);
+		         	//THIS ONE IS THE ONE THAT GOT THE GOOD RESULTS :3333
+		         	//data[i][j] += lr*((spikes[j] ? 1.0 : 0.0)*U[i][j]*pow(E[j], entropy_factor) - reg*data[i][j]*pow(trace[i],2));
 
-            if(iterations == -1){
-                iterations = timeWindow;
-            }
-            for(int t = 0; t < iterations; t++){
-                for(int i = 0; i < sample.size(); i++){
-                    neurons[i] = sample[i];
-                }
-                neuronFiring();
-                printf("\n TIMESTEP %d OUTPUT: ", t);
-                for(int i = 0; i < target.size(); i++){
-                    printf("%d", neurons[neurons.size() - target.size() + i] ? true : false);
-                }
-            }
-            printf("\n TARGET: ");
-            for(int i = 0; i < target.size(); i++){
-                printf("%d", target[i] ? true : false);
-            }
-            printf("\n");
-        }
-        void printAdjMatrix(int width=1, int decimals=2) {
-            printf("\n");
-            for (int i = 0; i < adjMatrix.rows(); ++i) {
-                for (int j = 0; j < adjMatrix.cols(); ++j) {
-                if (adjMatrix[i][j] > 0) {
-                    printf(" ");  // This adds a space before negative numbers
-                }
-                    printf("%-*.*f ", width, decimals, adjMatrix[i][j]);
-                }
-                printf("\n");
-            }
-        }
-        void printUMatrix(int width=1, int decimals=2) {
-            for (int i = 0; i < U.size(); ++i) {
-                for (int j = 0; j < U[i].size(); ++j) {
-                if (U[i][j] > 0) {
-                    printf(" ");  // This adds a space before negative numbers
-                }
-                    printf("%-*.*f ", width, decimals, U[i][j]);
-                }
-                printf("\n");
-            }
-            printf("\n");
-        }
-        void printNetwork(vector<int> pos, bool new_line = false){
-            for(int b = 0; b < neurons.size(); b++){
-                printf("%d", neurons[b] ? true : false);
-                for(int p = 0; p < pos.size(); p++){
-                    if(b == pos[p]){
-                        printf("|");
-                        continue;
-                    }
-                }
-            }
-        }
-};
+						data[i][j]->value += lr*(parent.neurons[j]->value*data[i][j]->U*pow(E[j],parent.hp.entropy_factor) - parent.hp.reg*data[i][j]*pow(parent.hp.neurons[i]->trace,2));
+						data[i][j]->value = max(-1.0,min(1.0,data[i][j]->value));
+					}
+				}
+			}
+	}
+	AdjMatrix adj;
+public:
+	HyperParameters hp;
+	bool operator[](size_t i) const {
+		return neurons[i];
+	};
+
+	size_t size() const { return neurons.size(); }
+
+	Network(SharedNetwork& s, const HyperParameters& hp_arg) : shared(s), adj(*this), hp(hp_arg), opt(hp_arg){
+
+		for(size_t i = 0; i < SIZE; i++){
+			NeuronPointer n = make_shared<Neuron>(false,0.0, this);
+			neurons.push_back(n);
+			s.neurons.push_back(n);
+		}
+		adj.initialize();
+		s.sub_networks.push_back(this);
+
+   }
+void printAdjMatrix(int width=1, int decimals=2) {
+	printf("\n");
+	for (int i = 0; i < adjMatrix.data.size(); ++i) {
+		for (int j = 0; j < adjMatrix.data[j].size(); ++j) {
+			if (adjMatrix[i][j] > 0) {
+						printf(" ");  // This adds a space before negative numbers
+					}
+					printf("%-*.*f ", width, decimals, adjMatrix[i][j]);
+				}
+				printf("\n");
+			}
+		}
+		void printUMatrix(int width=1, int decimals=2) {
+			for (int i = 0; i < U.size(); ++i) {
+				for (int j = 0; j < U[i].size(); ++j) {
+					if (U[i][j] > 0) {
+						printf(" ");  // This adds a space before negative numbers
+					}
+					printf("%-*.*f ", width, decimals, U[i][j]);
+				}
+				printf("\n");
+			}
+			printf("\n");
+		}
+		void printNetwork(vector<int> pos, bool new_line = false){
+			for(int b = 0; b < neurons.size(); b++){
+				printf("%d", neurons[b] ? true : false);
+				for(int p = 0; p < pos.size(); p++){
+					if(b == pos[p]){
+						printf("|");
+						continue;
+					}
+				}
+			}
+		}
+	};

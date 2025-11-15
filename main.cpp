@@ -1,71 +1,29 @@
-
-#include "network.cpp"
 #include <cstdlib>  // For std::stoi and std::stod
 #include <variant>
 #include <fstream>
 #include <chrono>
 #include <thread>
 
-vector<pair<vector<uint8_t>, vector<uint8_t>>> readDatasetFile(const string& filename){
-    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
-    ifstream infile(filename);
-    string line;
-    while(getline(infile,line)){
-        dataset.emplace_back();
-        bool first = true;
-        for(char c : line){
-            if(c == '-' || c == '.' || c == '|'){
-                first = false;
-                continue;
-            }
-            if(c != '0' && c != '1') continue;
 
-            if(first){
-                dataset.back().first.push_back(c == '1');
-            }else{
-                dataset.back().second.push_back(c == '1');
-            }
-        }
-    }
-    return dataset;
-}
+//TODO::
+/*
+-FIX HYPERPARAMS IN NETWORKARGS CODE
+-FIX HYPERPARAMS IN HYPERPARAM OPTIMIZER (move struct there?)
+-GET PARENT NETWORK FROM NEURON OR EDGE FOR HYPERPARAMS IN FIRING AND TRACE UPDATE
+--DECIDE WHAT HP TO CHOOSE DO IF A NEURON IS MERGED 
+*/
 
 int main(int argc, char *argv[]){
 
-    using Args = variant<int, double, bool>;
 
-    vector<pair<string, Args>> networkArgs = {{"--neuron-size", 30}, {"--time-window", 10}, {"--reg", 0.001}, {"--lr", 0.01}, {"--decay",0.01}, {"--u-decay", 0.01},
-                                                  {"--determinism", 0.5},{"--firing-value", 1.0},{"--null-window", 0}, {"--entropy-factor", 0.0}};
-
+    //NETWORKS ARGS IS OBSOLETE
     int epochs = 1;
-    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset;
-    vector<pair<vector<uint8_t>, vector<uint8_t>>> dataset_test;
-    int optimize = -1;
     bool verbose = false;
 
     for (int i = 1; i < argc; i++) {
-        for(int j = 0; j <networkArgs.size(); j++){
-            if(string(argv[i]) == networkArgs[j].first){
-                visit([&](auto& val){
-                    using T = decay_t<decltype(val)>;
-                    if constexpr (is_same_v<T, int>){
-                        networkArgs[j].second = stoi(argv[i+1]);
-                        i++;
-                    }else if constexpr (is_same_v<T, double>){
-                        networkArgs[j].second = stod(argv[i+1]);
-                        i++;
-                    }else if constexpr (is_same_v<T, bool>){
-                        networkArgs[j].second = (string(argv[i+1]) == "true" || string(argv[i+1]) == "1");
-                        i++;
-                    }
-                }, networkArgs[j].second);
-		continue;
-            }
-        }
         if(string(argv[i]) == "--epochs"){
             epochs = stoi(argv[i+1]);
             printf("\ntrain_epochs: %d", epochs);
-
             i++;
         }else if (string(argv[i]) == "--dataset"){
             dataset = readDatasetFile(argv[i+1]);
@@ -76,26 +34,19 @@ int main(int argc, char *argv[]){
         }else if (string(argv[i]) == "--optimize"){
 	       optimize = stoi(argv[i+1]);
            i++;
-	}else if(string(argv[i]) == "--verbose"){
-		verbose = true;
-	}
-	else{
-	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
-            printf("%s\n", string(argv[i]).c_str());
-	}
+    	}else if(string(argv[i]) == "--verbose"){
+    		verbose = true;
+    	}
+    	else{
+    	    printf("\n!!!!! UNKNOWN COMMAND !!!!!\n");
+                printf("%s\n", string(argv[i]).c_str());
+    	}
     }
 
     if(dataset_test.empty()){
         dataset_test = dataset;
         printf("ASSUMING TEST = TRAIN");
     }
-
-
-    Network network = Network(networkArgs);
-    this_thread::sleep_for(chrono::seconds(10));
-    network.runFull(dataset, dataset_test, epochs, true, optimize, verbose);
-
-    network.printAdjMatrix();
 
 	return 0;
 }
