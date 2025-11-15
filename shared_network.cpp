@@ -25,7 +25,7 @@ struct Edge {
 };
 using EdgePointer = shared_ptr<Edge>;
 
-class SharedNetwork{
+struct SharedNetwork{
 	vector<NeuronPointer> neurons;
 	vector<EdgePointer> edges;
 	vector<Network*> sub_networks;
@@ -36,7 +36,7 @@ class SharedNetwork{
         return p;
     }
 
-    NeuronPointer makeNode(uint8_t v = false, Network* n = nullptr) {
+    NeuronPointer makeNeuron(uint8_t v = false, Network* n = nullptr) {
         auto p = make_shared<Neuron>(v, 0.0, n);
         neurons.push_back(p);
         return p;

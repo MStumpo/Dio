@@ -2,10 +2,14 @@
 #include <random>
 #include <cmath>
 #include <algorithm>
-
+#include "Network.h"
 using namespace std;
 
-struct dataTerminal
+struct Neuron;
+using NeuronPointer = std::shared_ptr<Neuron>;
+
+
+struct DataTerminal
 {
     int id;
     vector<NeuronPointer> coordinates;
@@ -21,7 +25,7 @@ struct dataTerminal
 
 struct ScoreCalculator
 {
-    vector<dataTerminal*> terminals;
+    vector<DataTerminal*> terminals;
     vector<double> weights;
     double score(){
         double final_score = 0.0;
@@ -34,4 +38,4 @@ struct ScoreCalculator
         }
         return final_score/final_weights;
     }
-}
+};
