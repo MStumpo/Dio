@@ -6,13 +6,19 @@
 #include <cstdio>
 
 using namespace std;
-class Network;
-struct Neuron;
-struct Edge;
+
+
+#include "Network.h"
+
+
 using NeuronPointer = std::shared_ptr<Neuron>;
 using EdgePointer = std::shared_ptr<Edge>;
 
-// ---------------- Node / Edge creation ----------------
+SharedNetwork::SharedNetwork(int time_window = 10, int null_window = 10) {
+    data_manager = std::make_unique<DatasetManager>(this, "", null_window, time_window);
+};
+
+// ---------------- Neuron / Edge creation ----------------
 NeuronPointer SharedNetwork::makeNeuron(uint8_t v, Network* n) {
     auto p = make_shared<Neuron>(v, 0.0, n);
     neurons.push_back(p);
@@ -33,11 +39,15 @@ void SharedNetwork::mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessiv
             dominant->members.push_back(ptr);
         }
     }
-    for (auto& e : edges) {
-        if( (e->sender == dominant && e->destination == recessive) || (e->sender == recessive && e->destination == dominant) ){
-            edges.erase(remove(edges.begin(), edges.end(), e), edges.end());
-        }
 
+    edges.erase(
+        std::remove_if(edges.begin(), edges.end(), [&](auto& e) {
+            return (e->sender == dominant && e->destination == recessive || e->sender == recessive && e->destination == dominant);
+        }),
+        edges.end()
+    );
+
+    for (auto& e : edges) {
         if (e->sender == recessive) e->sender = dominant;
         if (e->destination == recessive) e->destination = dominant;
     }
@@ -47,6 +57,11 @@ void SharedNetwork::mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessiv
 
     // Update reference
     recessive = dominant;
+}
+
+void SharedNetwork::makeSubNetwork(HyperParameters& hp){
+    auto new_net = std::make_unique<Network>(this,hp);
+    sub_networks.push_back(new_net.get());
 }
 
 // ---------------- Dynamics ---------------- Sender neuron's original net controls trace decay
@@ -78,7 +93,7 @@ void SharedNetwork::neuronFiring() {
     }
 
     for (size_t i = 0; i < newStates.size(); i++) {
-        neurons[i]->value = (newStates[i] >= neurons[i]->members[0]->hp.firing_value) ? 1 : 0;
+        neurons[i]->value = (newStates[i] >= neurons[i]->members[0]->hp.firing_value) ? 1 : 0; //maybe firing val is sum of firing vals from both networks?
     }
 }
 
@@ -89,5 +104,16 @@ void SharedNetwork::clampData(){
                 terminal.coordinates[i]->value = terminal.values[i];
             }
         }
+    }
+}
+
+void SharedNetwork::runDataset(int iterations, string p = ""){
+    if(p == ""){
+        printf("ASSUMING DATASETMANAGER'S DATASET");
+    }else{
+        data_manager->path = p;
+    }
+    for(int t = 0; t < iterations; t++){
+        //TODO
     }
 }

@@ -1,9 +1,9 @@
 #pragma once
-#include "HyperParameters.h"
 #include <vector>
 #include <random>
 #include <numeric>
 #include <algorithm>
+#include "HyperParameters.h"
 
 struct HyperOptimizer {
     std::vector<HyperParameters> params;

@@ -3,16 +3,18 @@
 #include <memory>
 #include <random>
 #include <algorithm>
-#include "SharedNetwork.h" // assuming you have this header
 #include "HyperOptimizer.h"
+#include "HyperParameters.h"
 
+class Network;
 struct SharedNetwork;
-class Network; 
+
 struct Neuron {
     uint8_t value;
     double trace;
     std::vector<Network*> members;
-    Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr);
+    Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr)
+        : value(v), trace(t), members({n}) {};
 };
 using NeuronPointer = std::shared_ptr<Neuron>;
 
@@ -30,7 +32,7 @@ using EdgePointer = std::shared_ptr<Edge>;
 
 class Network {
 private:
-    SharedNetwork& shared;
+    SharedNetwork* shared;
     HyperOptimizer opt;
 
     class AdjMatrix {
@@ -53,7 +55,7 @@ public:
     HyperParameters hp;
     std::vector<NeuronPointer> neurons;
 
-    Network(SharedNetwork& s, const HyperParameters& hp_arg);
+    Network(SharedNetwork* s, HyperParameters& hp_arg);
 
     bool operator[](size_t i) const;
     size_t size() const;

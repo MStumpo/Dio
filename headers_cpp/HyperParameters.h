@@ -5,6 +5,7 @@
 #include <cmath>
 
 struct HyperParameters {
+    size_t NEURON_SIZE = 10;
     double lr = 0.01;
     double reg = 0.001;
     double entropy_factor = 1.0;
@@ -20,9 +21,9 @@ struct HyperParameters {
 
     size_t SIZE = 7;
 
-    HyperParameters(double l = 0.01, double r = 0.001, double e = 1.0, double d = 0.01,
+    HyperParameters(size_t s = 10, double l = 0.01, double r = 0.001, double e = 1.0, double d = 0.01,
                     double u = 0.01, double det = 0.5, double f = 1.0)
-        : lr(l), reg(r), entropy_factor(e), decay(d), u_decay(u), determinism(det), firing_value(f)
+        : NEURON_SIZE(s), lr(l), reg(r), entropy_factor(e), decay(d), u_decay(u), determinism(det), firing_value(f)
     {}
 
     double& operator[](size_t i);

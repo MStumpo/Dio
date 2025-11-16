@@ -25,17 +25,18 @@ HyperParameters HyperOptimizer::propose(size_t N, double var) {
 
     for(size_t p = 0; p < estimated.SIZE; ++p) {
         double weighted_sum = 0.0;
-        if(estimated.log_scale[p]) weighted_sum = 1.0;
+        bool is_log = estimated.log_scale[p];
+        if(is_log) weighted_sum = 1.0;
 
         for(size_t k = 0; k < N && k < scores.size(); ++k) {
-            weighted_sum += params[indices[k]][p] * (scores[indices[k]] / total_score);
+            weighted_sum += (is_log ? log(params[indices[k]][p]) : params[indices[k]][p]) * (scores[indices[k]] / total_score);
         }
 
         // add noise and clip to limits
         double noise = dist(rng) * (estimated.limits[p].second - estimated.limits[p].first) * N / total_score;
         weighted_sum = max(estimated.limits[p].first, min(weighted_sum + noise, estimated.limits[p].second));
 
-        if(estimated.log_scale[p]) weighted_sum = log(weighted_sum);
+        if(is_log) weighted_sum = log(weighted_sum);
 
         estimated[p] = weighted_sum;
     }

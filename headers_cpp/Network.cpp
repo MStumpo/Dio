@@ -4,6 +4,8 @@
 #include <omp.h>
 #include <algorithm>
 
+#include "SharedNetwork.h"
+
 using namespace std;
 
 // ------------------- AdjMatrix -------------------
@@ -37,7 +39,7 @@ void Network::AdjMatrix::initialize() {
         for (size_t j = 0; j < N; j++) {
             auto e = make_shared<Edge>(parent.neurons[i], parent.neurons[j], gen());
             data[i][j] = e;
-            parent.shared.edges.push_back(e);
+            parent.shared->edges.push_back(e);
         }
     }
 }
@@ -58,13 +60,13 @@ void Network::AdjMatrix::updateAdj() {
 }
 
 // ------------------- Network -------------------
-Network::Network(SharedNetwork& s, const HyperParameters& hp_arg)
+Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
     : shared(s), adj(*this), hp(hp_arg), opt(hp_arg) {
 
-    for (size_t i = 0; i < hp_arg.SIZE; i++) {
+    for (size_t i = 0; i < hp_arg.NEURON_SIZE; i++) {
         NeuronPointer n = make_shared<Neuron>(false, 0.0, this);
         neurons.push_back(n);
-        s.neurons.push_back(n);
+        s->neurons.push_back(n);
     }
 
     adj.initialize();
