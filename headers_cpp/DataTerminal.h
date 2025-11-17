@@ -16,7 +16,7 @@ using NeuronPointer = std::shared_ptr<Neuron>;
 struct DataTerminal
 {
     int id;
-    vector<NeuronPointer> coordinates;
+    vector<NeuronPointer> coordinates = {};
     size_t size;
     bool calibration;
     vector<uint8_t> values; //Same indexes as coords, meant to be updated constantly with time

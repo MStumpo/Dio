@@ -4,6 +4,7 @@
 #include <random>
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 using namespace std;
 
@@ -14,7 +15,7 @@ using namespace std;
 using NeuronPointer = std::shared_ptr<Neuron>;
 using EdgePointer = std::shared_ptr<Edge>;
 
-SharedNetwork::SharedNetwork(int time_window = 10, int null_window = 10) {
+SharedNetwork::SharedNetwork(int time_window, int null_window) {
     data_manager = std::make_unique<DatasetManager>(this, "", null_window, time_window);
 };
 
@@ -98,7 +99,7 @@ void SharedNetwork::neuronFiring() {
 }
 
 void SharedNetwork::clampData(){
-    for(DataTerminal terminal : terminals){
+    for(DataTerminal& terminal : terminals){
         if(terminal.clamped){
             for(int i = 0; i < terminal.coordinates.size(); i++){
                 terminal.coordinates[i]->value = terminal.values[i];
@@ -107,13 +108,22 @@ void SharedNetwork::clampData(){
     }
 }
 
-void SharedNetwork::runDataset(int iterations, string p = ""){
-    if(p == ""){
-        printf("ASSUMING DATASETMANAGER'S DATASET");
-    }else{
-        data_manager->path = p;
-    }
+void SharedNetwork::runDataset(int iterations, int train_iterations, int test_iterations){
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_real_distribution<> unif(0.0, 1.0);
     for(int t = 0; t < iterations; t++){
-        //TODO
+        for(DataTerminal& terminal : terminals){
+	    terminal.clamped = true;
+	    if(!terminal.calibration && unif(gen) < test_fraction){
+	    	terminal.clamped = false;
+	    }
+	}
+        clampData();
+	neuronFiring();
+	updateTrace();
+	for(Network* net : sub_networks){
+		net->adj.updateAdj();
+	}
     }
 }

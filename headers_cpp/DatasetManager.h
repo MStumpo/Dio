@@ -30,12 +30,10 @@ struct DatasetManager
     vector<vector<vector<uint8_t>>> dataset; //[terminal ID][data index][bit]
     vector<bool> shuffle; //Same index as terminal ID
     vector<ScoreCalculator> score_calculators;
-    int null_window;
-    int time_window;
     int current_iteration = 0;
     string path;
-    DatasetManager(SharedNetwork* net, string p, int null, int time);
+    DatasetManager(SharedNetwork* net, string p);
     void createNewTerminal(int id, size_t size, bool calibration);
-    void createScoreRule(vector<int> ids, vector<double> weights, vector<int> eval_ids);
+    void createScoreRule(vector<int> ids, vector<double> weights, vector<int> eval_ids); //first ids is terminal
     void updateCurrentValues();
 };

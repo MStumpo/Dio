@@ -1,3 +1,4 @@
+
 #pragma once
 #include <vector>
 #include <memory>
@@ -31,7 +32,7 @@ using EdgePointer = std::shared_ptr<Edge>;
 
 
 class Network {
-private:
+    private:
     SharedNetwork* shared;
     HyperOptimizer opt;
 
@@ -49,6 +50,7 @@ private:
         const std::vector<std::vector<EdgePointer>>& getData() const { return data; }
     };
 
+    public:
     AdjMatrix adj;
 
 public:

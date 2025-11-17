@@ -5,6 +5,7 @@
 #include <random>
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 #include "DataTerminal.h"
 #include "DatasetManager.h"
@@ -26,7 +27,7 @@ struct SharedNetwork {
     vector<DataTerminal> terminals;
     std::unique_ptr<DatasetManager> data_manager;
 
-    SharedNetwork(int time_window , int null_window);
+    SharedNetwork(int time_window=10 , int null_window=10);
     NeuronPointer makeNeuron(uint8_t v, Network* n);
     EdgePointer makeEdge(const NeuronPointer& s, const NeuronPointer& d, double v);
     void makeSubNetwork(HyperParameters& hp);
@@ -37,5 +38,5 @@ struct SharedNetwork {
     void updateTrace();
     void neuronFiring();
     void clampData();
-    void runDataset(int iterations, string p);
+    void runDataset(int iterations, double test_fraction);
 };

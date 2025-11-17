@@ -10,7 +10,7 @@ HyperOptimizer::HyperOptimizer(const HyperParameters& hyperparams, double init_s
     params.push_back(hyperparams);
 }
 
-HyperParameters HyperOptimizer::propose(size_t N, double var) {
+HyperParameters HyperOptimizer::propose(size_t N) {
     if(scores.empty()) return params.back(); // fallback
 
     vector<size_t> indices(scores.size());

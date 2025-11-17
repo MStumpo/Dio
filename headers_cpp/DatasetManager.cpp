@@ -16,7 +16,7 @@ void DataTerminal::updateValues(vector<uint8_t> new_vals){
 }
 
 double ScoreCalculator::score(){
- 	double final_score = 0.0;
+    double final_score = 0.0;
     double final_weights = 0.0;
     for(int i = 0; i < terminals.size(); i++){
         if(!terminals[i]->clamped){
@@ -27,7 +27,7 @@ double ScoreCalculator::score(){
     return final_score/final_weights;
 }
 
-DatasetManager::DatasetManager(SharedNetwork* net, string p, int null, int time) : shared_network(net), path(p), null_window(null), time_window(time){
+DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(net), path(p){
     ifstream file(path);
     //Csv rules: while in same sub_net, see if data_id is always increasing, if data_id resets to 0 in the same sub_net then assign a new Terminal
     //THIS ALGO DOES NOT REMEMBER PREV_SUB_NET_NEURONS FROM PREVIOUSLY ACCESSED NETS SO PLEASE WRITE DATASETS SEQUENTIALLY TO AVOID OVERRIDES
@@ -35,6 +35,7 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p, int null, int time)
     int prev_data_id = 1;
     int prev_sub_net_neuron = 0;
     int prev_sub_net = 0;
+
     while(getline(file, line)){
         stringstream ss(line);
         string sub_net;
@@ -51,15 +52,17 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p, int null, int time)
         if(sub_net == "sub_net") continue;
 
         for(char c : values_string) values.push_back(c == '1' ? true : false);
+
         if(prev_data_id > 0 && stoi(data_id) == 0){
             createNewTerminal(terminals.size()-1, values.size(), false);
+
             dataset.push_back(vector<vector<uint8_t>>({}));
             shuffle.push_back((shuff == "1" ? 1 : 0));
-            //Assign new sub_net slots
+
             if(stoi(sub_net) == prev_sub_net){
                 terminals[terminals.size()-1].coordinates.assign(
                     shared_network->sub_networks[prev_sub_net]->neurons.begin() + prev_sub_net_neuron,
-                     shared_network->sub_networks[prev_sub_net]->neurons.begin() + prev_sub_net_neuron + values.size());
+                    shared_network->sub_networks[prev_sub_net]->neurons.begin() + prev_sub_net_neuron + values.size());
                 prev_sub_net_neuron += values.size();
             }else{
                 prev_sub_net_neuron = 0;

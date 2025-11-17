@@ -14,6 +14,6 @@ struct HyperOptimizer {
 
     HyperOptimizer(const HyperParameters& hyperparams, double init_step = 3);
 
-    HyperParameters propose(size_t N = 5, double var = 0.1);
+    HyperParameters propose(size_t N = 5);
     void update(const HyperParameters& candidate, double score);
 };
