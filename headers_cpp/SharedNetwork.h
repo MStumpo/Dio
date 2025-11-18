@@ -23,20 +23,19 @@ using namespace std;
 struct SharedNetwork {
     vector<NeuronPointer> neurons;
     vector<EdgePointer> edges;
-    vector<Network*> sub_networks;
+    vector<unique_ptr<Network>> sub_networks;
     vector<DataTerminal> terminals;
     std::unique_ptr<DatasetManager> data_manager;
 
-    SharedNetwork(int time_window=10 , int null_window=10);
     NeuronPointer makeNeuron(uint8_t v, Network* n);
     EdgePointer makeEdge(const NeuronPointer& s, const NeuronPointer& d, double v);
     void makeSubNetwork(HyperParameters& hp);
-
+    void createDatasetManager(string path);
     void mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessive);
 
     // Dynamics
     void updateTrace();
     void neuronFiring();
     void clampData();
-    void runDataset(int iterations, double test_fraction);
+    void runDataset(int iterations, int train_window, int test_window, int null_window, int optimize_period);
 };

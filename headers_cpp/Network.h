@@ -34,7 +34,6 @@ using EdgePointer = std::shared_ptr<Edge>;
 class Network {
     private:
     SharedNetwork* shared;
-    HyperOptimizer opt;
 
     class AdjMatrix {
     private:
@@ -55,6 +54,7 @@ class Network {
 
 public:
     HyperParameters hp;
+    HyperOptimizer opt;
     std::vector<NeuronPointer> neurons;
 
     Network(SharedNetwork* s, HyperParameters& hp_arg);
@@ -65,7 +65,7 @@ public:
     // printing / utility functions
     void printAdjMatrix(int width = 1, int decimals = 2);
     void printUMatrix(int width = 1, int decimals = 2);
-    void printNetwork(const std::vector<int>& pos, bool new_line = false);
+    void printNetwork(const std::vector<int>& pos = {}, bool new_line = true);
 
     const AdjMatrix& getAdjMatrix() const { return adj; }
 };

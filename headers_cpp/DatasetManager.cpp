@@ -19,7 +19,7 @@ double ScoreCalculator::score(){
     double final_score = 0.0;
     double final_weights = 0.0;
     for(int i = 0; i < terminals.size(); i++){
-        if(!terminals[i]->clamped){
+        if(!terminals[i]->clamped && weights[i] != 0){
             for(int j = 0; j < terminals[i]->size; j++) final_score += (terminals[i]->coordinates[j]->value == terminals[i]->values[j] ? 1.0 : -1.0);
             final_weights += weights[i];
         }
@@ -28,11 +28,11 @@ double ScoreCalculator::score(){
 }
 
 DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(net), path(p){
+
     ifstream file(path);
     //Csv rules: while in same sub_net, see if data_id is always increasing, if data_id resets to 0 in the same sub_net then assign a new Terminal
     //THIS ALGO DOES NOT REMEMBER PREV_SUB_NET_NEURONS FROM PREVIOUSLY ACCESSED NETS SO PLEASE WRITE DATASETS SEQUENTIALLY TO AVOID OVERRIDES
     string line;
-    int prev_data_id = 1;
     int prev_sub_net_neuron = 0;
     int prev_sub_net = 0;
 
@@ -53,24 +53,25 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(ne
 
         for(char c : values_string) values.push_back(c == '1' ? true : false);
 
-        if(prev_data_id > 0 && stoi(data_id) == 0){
+        if(stoi(data_id) == 0){
             createNewTerminal(terminals.size()-1, values.size(), false);
 
             dataset.push_back(vector<vector<uint8_t>>({}));
             shuffle.push_back((shuff == "1" ? 1 : 0));
 
-            if(stoi(sub_net) == prev_sub_net){
-                terminals[terminals.size()-1].coordinates.assign(
-                    shared_network->sub_networks[prev_sub_net]->neurons.begin() + prev_sub_net_neuron,
-                    shared_network->sub_networks[prev_sub_net]->neurons.begin() + prev_sub_net_neuron + values.size());
-                prev_sub_net_neuron += values.size();
-            }else{
-                prev_sub_net_neuron = 0;
-                prev_sub_net = stoi(sub_net);
-            }
+            if(stoi(sub_net) != prev_sub_net) prev_sub_net_neuron = 0;
+
+            for(int i = 0; i < values.size(); i++) terminals[terminals.size()-1].coordinates.push_back(shared_network->sub_networks[stoi(sub_net)]->neurons[prev_sub_net_neuron + i]);
+
+            /*
+            terminals[terminals.size()-1].coordinates.assign(
+                shared_network->sub_networks[stoi(sub_net)]->neurons.begin() + prev_sub_net_neuron,
+                shared_network->sub_networks[stoi(sub_net)]->neurons.begin() + prev_sub_net_neuron + values.size());
+            */
+            prev_sub_net_neuron += values.size();
+            prev_sub_net = stoi(sub_net);
         }
-        dataset[dataset.size()-1].push_back(values);
-        prev_data_id = stoi(data_id);
+        dataset[dataset.size()-1].push_back(values); //always update to latest terminal dataset is read [TERMINALID][DATA_INDEX][BIT]
     }
 }
 
@@ -89,7 +90,7 @@ void DatasetManager::createScoreRule(vector<int> ids, vector<double> weights, ve
         }
     }
     for(int id : eval_ids){
-        eval_targets.push_back(shared_network->sub_networks[id]); //for some reason this works but &shared_net->sub_net[id] doesn't
+        eval_targets.push_back(shared_network->sub_networks[id].get()); //for some reason this works but &shared_net->sub_net[id] doesn't
     }
     score_calculators.push_back(ScoreCalculator(targets, weights, eval_targets));
 }

@@ -59,6 +59,7 @@ void Network::AdjMatrix::updateAdj() {
     }
 }
 
+
 // ------------------- Network -------------------
 Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
     : shared(s), adj(*this), hp(hp_arg), opt(hp_arg) {
@@ -66,11 +67,11 @@ Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
     for (size_t i = 0; i < hp_arg.NEURON_SIZE; i++) {
         NeuronPointer n = make_shared<Neuron>(false, 0.0, this);
         neurons.push_back(n);
-        s->neurons.push_back(n);
+
+        shared->neurons.push_back(n);
     }
 
     adj.initialize();
-    //s.sub_networks.push_back(this);
 }
 
 size_t Network::size() const { return neurons.size(); }
@@ -90,7 +91,7 @@ void Network::printAdjMatrix(int width, int decimals) {
 
 void Network::printNetwork(const vector<int>& pos, bool new_line) {
     for (size_t b = 0; b < neurons.size(); b++) {
-        printf("%d", neurons[b] ? true : false);
+        printf("%d", neurons[b]->value ? true : false); //this doesn't
         for (auto p : pos) {
             if (b == static_cast<size_t>(p)) printf("|");
         }

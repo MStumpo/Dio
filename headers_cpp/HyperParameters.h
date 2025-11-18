@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 struct HyperParameters {
     size_t NEURON_SIZE = 10;
@@ -14,8 +15,8 @@ struct HyperParameters {
     double determinism = 0.5;
     double firing_value = 1.0;
 
-    const std::vector<bool> log_scale = {true, true, false, false, false, false, false};
-    const std::vector<std::pair<double,double>> limits = {
+    std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false};
+    std::vector<std::pair<double,double>> limits = {
         {1e-11,1},{1e-11,1},{-5,5},{0,1},{0,1},{0,1},{-3,3}
     };
 
@@ -28,11 +29,4 @@ struct HyperParameters {
 
     double& operator[](size_t i);
     size_t size() const { return SIZE; }
-
-private:
-    static double clip(double val, double low, double high) {
-        return std::max(low, std::min(val, high));
-    }
-
-    friend struct HyperOptimizer;
 };
