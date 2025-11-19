@@ -15,18 +15,6 @@ void DataTerminal::updateValues(vector<uint8_t> new_vals){
 	for(int i = 0; i < values.size(); i++) values[i] = new_vals[i];
 }
 
-double ScoreCalculator::score(){
-    double final_score = 0.0;
-    double final_weights = 0.0;
-    for(int i = 0; i < terminals.size(); i++){
-        if(!terminals[i]->clamped && weights[i] != 0){
-            for(int j = 0; j < terminals[i]->size; j++) final_score += (terminals[i]->coordinates[j]->value == terminals[i]->values[j] ? 1.0 : -1.0);
-            final_weights += weights[i];
-        }
-    }
-    return final_score/final_weights;
-}
-
 DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(net), path(p){
 
     ifstream file(path);
@@ -54,20 +42,15 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(ne
         for(char c : values_string) values.push_back(c == '1' ? true : false);
 
         if(stoi(data_id) == 0){
-            createNewTerminal(terminals.size()-1, values.size(), false);
+            createNewTerminal(terminals.size(), values.size(), false);
 
             dataset.push_back(vector<vector<uint8_t>>({}));
             shuffle.push_back((shuff == "1" ? 1 : 0));
 
             if(stoi(sub_net) != prev_sub_net) prev_sub_net_neuron = 0;
 
-            for(int i = 0; i < values.size(); i++) terminals[terminals.size()-1].coordinates.push_back(shared_network->sub_networks[stoi(sub_net)]->neurons[prev_sub_net_neuron + i]);
+            for(int i = 0; i < values.size(); i++) terminals[terminals.size()-1]->coordinates.push_back(shared_network->sub_networks[stoi(sub_net)]->neurons[prev_sub_net_neuron + i]);
 
-            /*
-            terminals[terminals.size()-1].coordinates.assign(
-                shared_network->sub_networks[stoi(sub_net)]->neurons.begin() + prev_sub_net_neuron,
-                shared_network->sub_networks[stoi(sub_net)]->neurons.begin() + prev_sub_net_neuron + values.size());
-            */
             prev_sub_net_neuron += values.size();
             prev_sub_net = stoi(sub_net);
         }
@@ -76,17 +59,15 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(ne
 }
 
 void DatasetManager::createNewTerminal(int id, size_t size, bool calibration){
-    terminals.push_back(DataTerminal(id, size, calibration));
+    terminals.push_back(make_unique<DataTerminal>(id, size, calibration));
 }
 
 void DatasetManager::createScoreRule(vector<int> ids, vector<double> weights, vector<int> eval_ids){
     vector<DataTerminal*> targets;
     vector<Network*> eval_targets;
     for(int id : ids){
-        for(DataTerminal& t : terminals){
-            if(t.id == id){ //this whole loop is redundant if ID is equal to index but oh well
-                targets.push_back(&t);
-            }
+        for(unique_ptr<DataTerminal>& t : terminals){
+            if(t->id == id) targets.push_back(t.get()); //this condition is redundant if ID is equal to index but oh well
         }
     }
     for(int id : eval_ids){
@@ -97,8 +78,24 @@ void DatasetManager::createScoreRule(vector<int> ids, vector<double> weights, ve
 
 void DatasetManager::updateCurrentValues(){
     for(int i = 0; i < dataset.size(); i++){//[terminal ID][data index][bit]
-        if(!shuffle[i]){ terminals[i].updateValues(dataset[i][current_iteration+1]);}
-        else {terminals[i].updateValues(dataset[i][rand()%dataset[i].size()]);}
+        if(!shuffle[i]){ terminals[i]->updateValues(dataset[i][(current_iteration+1)%dataset[i].size()]);}
+        else {terminals[i]->updateValues(dataset[i][rand()%dataset[i].size()]);}
     }
     current_iteration++;
+}
+
+double ScoreCalculator::score(){
+    double final_score = 0.0;
+    double final_weights = 0.0;
+    printf("DEBUG MEME\n");
+    printf("%zu\n", weights.size());
+    printf("DEBUG ScoreCalculator::score %zu", terminal_ptrs.size()); //crashes
+    for(int i = 0; i < terminal_ptrs.size(); i++){
+        printf("DEBUG ScoreCalculator::score %zu", terminal_ptrs[i]->size);
+        if(!terminal_ptrs[i]->clamped && weights[i] != 0){
+            for(int j = 0; j < terminal_ptrs[i]->size; j++) final_score += (terminal_ptrs[i]->coordinates[j]->value == terminal_ptrs[i]->values[j] ? 1.0 : -1.0);
+            final_weights += weights[i];
+        }
+    }
+    return final_score/final_weights;
 }

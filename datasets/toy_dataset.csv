@@ -1,4 +1,4 @@
-sub_net,data_id,shuffle,values
+sub_net,data_id,shuffle,values #OK HERE'S HOW IT WORKS: 
 0,0,0,0010100101
 0,1,0,1111010101
 0,2,0,0101010110
@@ -10,3 +10,4 @@ sub_net,data_id,shuffle,values
 1,2,0,0000010001
 1,3,0,1110101101
 1,4,0,1101100001
+1,5,0,1101100111

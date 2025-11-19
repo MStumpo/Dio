@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <string>
-
+#include <format>
 using namespace std;
 
 
@@ -15,7 +15,7 @@ using namespace std;
 using NeuronPointer = std::shared_ptr<Neuron>;
 using EdgePointer = std::shared_ptr<Edge>;
 
-void progress_bar(int current, int total, double metric = -1.0) {
+void progress_bar(int current, int total, string message = "") {
     int barWidth = 50;
     float progress = (float)current / total;
 
@@ -26,10 +26,10 @@ void progress_bar(int current, int total, double metric = -1.0) {
         else if (i == pos) printf(">");
         else printf(" ");
     }
-    if(metric == -1){
-        printf("] %d %%", (int)(progress * 100));
+    if(message == ""){
+        printf("] %f %%", (progress * 100));
     }else{
-        printf("] %d %f %%", (int)(progress * 100), metric);
+        printf("] %f%% %s ", (progress * 100), message.c_str());
     }
     fflush(stdout); // make sure it prints immediately
 }
@@ -127,14 +127,19 @@ void SharedNetwork::clampData(){
     }
 }
 
-void SharedNetwork::runDataset(int iterations, int train_window, int test_window, int null_window =0, int optimize_period = -1){
+void SharedNetwork::runDataset(int iterations, int train_window, int test_window, int null_window =0, int optimize_period = -1, int verb = 0){
+    //Verbose: 0- nothing 1- scores 3 - network 4- network + adj
+    //I don't give a flying rat's ass if it's not implemented yet I am tired, busy and apparently autistic
 
     vector<double> current_scores(data_manager->score_calculators.size(), 0.0);
-
+    string message;
     for(int i = 0; i < iterations; i++){
-        //progress_bar(i, iterations);
-        printf("DORA THE DEBUG EXPLORER\n");
-        current_scores = vector<double>(data_manager->score_calculators.size(), 0.0);
+        message = "";
+        if(verb >= 1){
+            message.append(" SCORES: ");
+            for(double score : current_scores) message.append(format(" {:}, " ,score));
+        }
+        //progress_bar(i, iterations, message);
         for(int t = 0; t < train_window + null_window + test_window; t++ ){
             if(t == 0) for(DataTerminal& terminal : terminals) terminal.clamped = true;
             if(t == train_window) for(DataTerminal& terminal : terminals) terminal.clamped = false;
@@ -146,18 +151,23 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
         		net->adj.updateAdj();
         	}
 
+
             if(t >= train_window + null_window){
                 for(int s = 0; s < current_scores.size(); s++){
                     current_scores[s] += data_manager->score_calculators[s].score(); //don't forget to avg later
                 }
             }
         }
-        for(int s = 0; s < current_scores.size(); s++){
-            current_scores[s] /= train_window + null_window + test_window; //don't forget to avg later
-            for(auto& target : data_manager->score_calculators[s].targets){
-                target->opt.update(target->hp, current_scores[s]); //PROBLEM: TARGETS MUST NOT REPEAT-> TODO: sum same-target scores
-                target->hp = target->opt.propose();
+
+        if(i%optimize_period == 0){
+            for(int s = 0; s < current_scores.size(); s++){
+                current_scores[s] /= train_window + null_window + test_window; //don't forget to avg later
+                for(auto& target : data_manager->score_calculators[s].targets){
+                    target->opt.update(target->hp, current_scores[s]); //PROBLEM: TARGETS MUST NOT REPEAT-> TODO: sum same-target scores
+                    target->hp = target->opt.propose();
+                }
             }
+            current_scores = vector<double>(data_manager->score_calculators.size(), 0.0);
         }
         data_manager->updateCurrentValues();
     }

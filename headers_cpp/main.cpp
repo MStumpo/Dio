@@ -15,29 +15,32 @@
 using namespace std;
 int main(int argc, char *argv[]){
 
-	int TIME_WINDOW = 30;
+	int TRAIN_WINDOW = 30;
+	int TEST_WINDOW = 30;
 	int NULL_WINDOW = 30;
+	int TOTAL_ITERATIONS = 100000;
+	int OPTIMIZE_ITERATIONS = 100;
+
 	HyperParameters hp1;
 	HyperParameters hp2; 
-	hp1.NEURON_SIZE = 10;
-	hp2.NEURON_SIZE = 30;
+	hp1.NEURON_SIZE = 30;
+	hp2.NEURON_SIZE = 50;
 	string PATH = "datasets/toy_dataset.csv";
 	SharedNetwork shared_net;
 
 	shared_net.makeSubNetwork(hp1);
 	shared_net.makeSubNetwork(hp2);
 
+
 	shared_net.createDatasetManager(PATH);
 
+	shared_net.data_manager->createScoreRule({0},{1.0},{0,1}); //terminals(ts), weights(w), targets(networks)
 
-	shared_net.data_manager->createScoreRule({1},{1.0},{0,1}); //Remember, it's the terminals that are used to calculate the score, the weights and the target networks
-
-	for(int i = 0; i < 5; i++){
+	for(int i = 0; i < 7; i++){
 		shared_net.mergeNeuron(shared_net.sub_networks[0]->neurons[hp1.NEURON_SIZE-1-i], shared_net.sub_networks[1]->neurons[hp2.NEURON_SIZE-1-i]);
 	}
 
-
-	shared_net.runDataset(1000, 10, 10, 0, 10);
+	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 1);
 
 
 

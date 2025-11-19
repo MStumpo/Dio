@@ -16,17 +16,17 @@ using namespace std;
 
 struct ScoreCalculator
 {
-    vector<DataTerminal*> terminals;
+    vector<DataTerminal*> terminal_ptrs;
     vector<double> weights;
     vector<Network*> targets;
     double score();
-    ScoreCalculator(vector<DataTerminal*> ts, vector<double> w, vector<Network*> ts2) : terminals(ts), weights(w), targets(ts2) {};
+    ScoreCalculator(vector<DataTerminal*> ts, vector<double> w, vector<Network*> ts2) : terminal_ptrs(ts), weights(w), targets(ts2) {};
 };
 
 struct DatasetManager
 {
     SharedNetwork* shared_network;
-    vector<DataTerminal> terminals;
+    vector<unique_ptr<DataTerminal>> terminals;
     vector<vector<vector<uint8_t>>> dataset; //[terminal ID][data index][bit]
     vector<bool> shuffle; //Same index as terminal ID
     vector<ScoreCalculator> score_calculators;

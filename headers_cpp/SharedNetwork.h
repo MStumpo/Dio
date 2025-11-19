@@ -37,5 +37,5 @@ struct SharedNetwork {
     void updateTrace();
     void neuronFiring();
     void clampData();
-    void runDataset(int iterations, int train_window, int test_window, int null_window, int optimize_period);
+    void runDataset(int iterations, int train_window, int test_window, int null_window, int optimize_period, int verb);
 };
