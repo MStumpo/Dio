@@ -23,7 +23,6 @@ DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(ne
     string line;
     int prev_sub_net_neuron = 0;
     int prev_sub_net = 0;
-
     while(getline(file, line)){
         stringstream ss(line);
         string sub_net;
@@ -87,15 +86,11 @@ void DatasetManager::updateCurrentValues(){
 double ScoreCalculator::score(){
     double final_score = 0.0;
     double final_weights = 0.0;
-    printf("DEBUG MEME\n");
-    printf("%zu\n", weights.size());
-    printf("DEBUG ScoreCalculator::score %zu", terminal_ptrs.size()); //crashes
     for(int i = 0; i < terminal_ptrs.size(); i++){
-        printf("DEBUG ScoreCalculator::score %zu", terminal_ptrs[i]->size);
-        if(!terminal_ptrs[i]->clamped && weights[i] != 0){
-            for(int j = 0; j < terminal_ptrs[i]->size; j++) final_score += (terminal_ptrs[i]->coordinates[j]->value == terminal_ptrs[i]->values[j] ? 1.0 : -1.0);
-            final_weights += weights[i];
+        if(!terminal_ptrs[i]->clamped && weights[i] != 0.0){
+            for(int j = 0; j < terminal_ptrs[i]->size; j++) final_score += weights[i]*(terminal_ptrs[i]->coordinates[j]->value == terminal_ptrs[i]->values[j] ? 1.0 : -1.0)/((double) terminal_ptrs[i]->size);
+	    final_weights += weights[i];
         }
     }
-    return final_score/final_weights;
+    return final_score/(final_weights);
 }

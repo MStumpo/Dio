@@ -20,7 +20,7 @@ HyperParameters HyperOptimizer::propose(size_t N) {
     });
 
     HyperParameters estimated;
-    double total_score = 0.0;
+    double total_score = 0.0; //ASSUME MAX SCORE IS 1.0 for noise calculation
     for(size_t k = 0; k < N && k < scores.size(); ++k) total_score += scores[indices[k]];
 
     for(size_t p = 0; p < estimated.SIZE; ++p) {
@@ -33,7 +33,7 @@ HyperParameters HyperOptimizer::propose(size_t N) {
         }
 
         // add noise and clip to limits
-        double noise = dist(rng) * (estimated.limits[p].second - estimated.limits[p].first) * N / total_score;
+        double noise = 0.01*dist(rng) * (estimated.limits[p].second - estimated.limits[p].first)*(1.0-total_score/N);
         weighted_sum = max(estimated.limits[p].first, min(weighted_sum + noise, estimated.limits[p].second));
 
         if(is_log) weighted_sum = log(weighted_sum);

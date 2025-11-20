@@ -49,7 +49,7 @@ EdgePointer SharedNetwork::makeEdge(const NeuronPointer& s, const NeuronPointer&
 
 
 void SharedNetwork::createDatasetManager(string path) {
-    data_manager = std::make_unique<DatasetManager>(this, path);
+    data_manager = std::move(std::make_unique<DatasetManager>(this, path));
 };
 
 // ---------------- Merge neurons ---------------- IN THIS CASE edges aren't removed from AdjMatrix because I still want both networks to be able to modify the merged neuron
@@ -137,10 +137,15 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
         message = "";
         if(verb >= 1){
             message.append(" SCORES: ");
-            for(double score : current_scores) message.append(format(" {:}, " ,score));
+            for(double score : current_scores) message.append(format(" {:} : " ,score/((1+i%optimize_period)*test_window)));
         }
-        //progress_bar(i, iterations, message);
-        for(int t = 0; t < train_window + null_window + test_window; t++ ){
+        if(verb >= 2){
+	    message.append(" NETS: ");
+ 	    for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+
+       }
+        progress_bar(i, iterations, message);
+	for(int t = 0; t < train_window + null_window + test_window; t++ ){
             if(t == 0) for(DataTerminal& terminal : terminals) terminal.clamped = true;
             if(t == train_window) for(DataTerminal& terminal : terminals) terminal.clamped = false;
             if(t == train_window + null_window)  for(DataTerminal& terminal : terminals) if(!terminal.calibration) terminal.clamped = false;
@@ -154,14 +159,14 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
 
             if(t >= train_window + null_window){
                 for(int s = 0; s < current_scores.size(); s++){
-                    current_scores[s] += data_manager->score_calculators[s].score(); //don't forget to avg later
+		    current_scores[s] += data_manager->score_calculators[s].score(); //don't forget to avg later
                 }
             }
         }
 
         if(i%optimize_period == 0){
             for(int s = 0; s < current_scores.size(); s++){
-                current_scores[s] /= train_window + null_window + test_window; //don't forget to avg later
+                current_scores[s] /= optimize_period*test_window; //don't forget to avg later
                 for(auto& target : data_manager->score_calculators[s].targets){
                     target->opt.update(target->hp, current_scores[s]); //PROBLEM: TARGETS MUST NOT REPEAT-> TODO: sum same-target scores
                     target->hp = target->opt.propose();

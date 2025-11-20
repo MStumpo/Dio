@@ -66,6 +66,7 @@ public:
     void printAdjMatrix(int width = 1, int decimals = 2);
     void printUMatrix(int width = 1, int decimals = 2);
     void printNetwork(const std::vector<int>& pos = {}, bool new_line = true);
+    std::string networkString();
 
     const AdjMatrix& getAdjMatrix() const { return adj; }
 };

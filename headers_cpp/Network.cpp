@@ -98,3 +98,11 @@ void Network::printNetwork(const vector<int>& pos, bool new_line) {
     }
     if (new_line) printf("\n");
 }
+
+string Network::networkString(){
+    string s = "";
+    for(size_t b = 0; b < neurons.size(); b++){
+        s.append(neurons[b]->value ? "1" : "0");
+    }
+    return s;
+}

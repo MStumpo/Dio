@@ -25,7 +25,7 @@ struct SharedNetwork {
     vector<EdgePointer> edges;
     vector<unique_ptr<Network>> sub_networks;
     vector<DataTerminal> terminals;
-    std::unique_ptr<DatasetManager> data_manager;
+    unique_ptr<DatasetManager> data_manager;
 
     NeuronPointer makeNeuron(uint8_t v, Network* n);
     EdgePointer makeEdge(const NeuronPointer& s, const NeuronPointer& d, double v);
