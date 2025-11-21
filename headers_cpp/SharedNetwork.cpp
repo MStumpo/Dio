@@ -19,7 +19,7 @@ void progress_bar(int current, int total, string message = "") {
     int barWidth = 50;
     float progress = (float)current / total;
 
-    printf("\r["); // return to start of line
+    printf(" \033[A \33[2K \r");
     int pos = (int)(barWidth * progress);
     for (int i = 0; i < barWidth; ++i) {
         if (i < pos) printf("=");
@@ -99,21 +99,25 @@ void SharedNetwork::updateTrace() {
 void SharedNetwork::neuronFiring() {
     mt19937 gen(random_device{}());
     uniform_real_distribution<double> unif(0.0, 1.0);
-    vector<double> newStates(neurons.size(), 0.0);
 
     for (auto& e : edges) {
         if (e->sender->value) {
+            /* //Dunno what chatgpt was on about here this is some weird shit
             size_t idx = distance(neurons.begin(), find(neurons.begin(), neurons.end(), e->destination));
             if (idx < newStates.size()) {
-                newStates[idx] += (unif(gen) > e->value)
+                newStates[idx] += (unif(gen) < e->value)
                                   ? (e->value > 0 ? -1 : 1)
                                   : e->sender->members[0]->hp.determinism * e->value;
-            }
+            }*/
+            e->destination->buf += (unif(gen) < e->value)
+                                  ? (e->value > 0 ? -1 : 1)
+                                  : e->sender->members[0]->hp.determinism * e->value;
         }
     }
 
-    for (size_t i = 0; i < newStates.size(); i++) {
-        neurons[i]->value = (newStates[i] >= neurons[i]->members[0]->hp.firing_value) ? 1 : 0; //maybe firing val is sum of firing vals from both networks?
+    for (auto& neuron : neurons) {
+        neuron->value = (neuron->buf >= neuron->members[0]->hp.firing_value) ? 1 : 0; //maybe firing val is sum of firing vals from both networks?
+        neuron->buf = 0.0;
     }
 }
 
@@ -135,15 +139,16 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
     string message;
     for(int i = 0; i < iterations; i++){
         message = "";
-        if(verb >= 1){
+        if(verb >= 3){
+            message.append(" ADJ MATRICES: \n");
+            for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
+        }else if(verb >= 2){
+	    message.append(" NETS: ");
+ 	    for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+       }else if(verb >= 1){
             message.append(" SCORES: ");
             for(double score : current_scores) message.append(format(" {:} : " ,score/((1+i%optimize_period)*test_window)));
         }
-        if(verb >= 2){
-	    message.append(" NETS: ");
- 	    for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
-
-       }
         progress_bar(i, iterations, message);
 	for(int t = 0; t < train_window + null_window + test_window; t++ ){
             if(t == 0) for(DataTerminal& terminal : terminals) terminal.clamped = true;
@@ -159,7 +164,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
 
             if(t >= train_window + null_window){
                 for(int s = 0; s < current_scores.size(); s++){
-		    current_scores[s] += data_manager->score_calculators[s].score(); //don't forget to avg later
+		              current_scores[s] += data_manager->score_calculators[s].score(); //don't forget to avg later
                 }
             }
         }

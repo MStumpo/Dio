@@ -48,12 +48,10 @@ void Network::AdjMatrix::updateAdj() {
     size_t N = data.size();
     vector<double> E = colEntropy();
 
-    #pragma omp for collapse(2)
+    //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U *
-                pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value *
-                pow(parent.neurons[i]->trace, 2));
+            data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
         }
     }
@@ -76,19 +74,6 @@ Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
 
 size_t Network::size() const { return neurons.size(); }
 
-// ------------------- Printing -------------------
-void Network::printAdjMatrix(int width, int decimals) {
-    printf("\n");
-    auto& adjData = adj.getData();
-    for (size_t i = 0; i < adjData.size(); ++i) {
-        for (size_t j = 0; j < adjData[i].size(); ++j) {
-            if (adjData[i][j]->value > 0) printf(" ");
-            printf("%-*.*f ", width, decimals, adjData[i][j]->value);
-        }
-        printf("\n");
-    }
-}
-
 void Network::printNetwork(const vector<int>& pos, bool new_line) {
     for (size_t b = 0; b < neurons.size(); b++) {
         printf("%d", neurons[b]->value ? true : false); //this doesn't
@@ -105,4 +90,21 @@ string Network::networkString(){
         s.append(neurons[b]->value ? "1" : "0");
     }
     return s;
+}
+
+string Network::adjString(){
+    string s = "";
+    int width = 5;
+    int prec  = 2;
+
+    for (auto &r : adj.data) {
+        s.append("\n");
+        for (auto &c : r) {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%*.*f", width, prec, c->value);
+            s.append(buf);
+        }
+    }
+    return s;
+
 }

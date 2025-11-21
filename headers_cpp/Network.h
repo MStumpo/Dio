@@ -14,6 +14,7 @@ struct Neuron {
     uint8_t value;
     double trace;
     std::vector<Network*> members;
+    double buf = 0.0;
     Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr)
         : value(v), trace(t), members({n}) {};
 };
@@ -38,11 +39,11 @@ class Network {
     class AdjMatrix {
     private:
         Network& parent;
-        std::vector<std::vector<EdgePointer>> data;
 
         std::vector<double> colEntropy();
 
     public:
+        std::vector<std::vector<EdgePointer>> data;
         AdjMatrix(Network& parent_network);
         void initialize();
         void updateAdj();
@@ -67,6 +68,7 @@ public:
     void printUMatrix(int width = 1, int decimals = 2);
     void printNetwork(const std::vector<int>& pos = {}, bool new_line = true);
     std::string networkString();
+    std::string adjString();
 
     const AdjMatrix& getAdjMatrix() const { return adj; }
 };

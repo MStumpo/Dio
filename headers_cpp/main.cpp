@@ -17,14 +17,14 @@ int main(int argc, char *argv[]){
 
 	int TRAIN_WINDOW = 30;
 	int TEST_WINDOW = 30;
-	int NULL_WINDOW = 30;
-	int TOTAL_ITERATIONS = 100000;
-	int OPTIMIZE_ITERATIONS = 100;
+	int NULL_WINDOW = 10;
+	int TOTAL_ITERATIONS = 1000000;
+	int OPTIMIZE_ITERATIONS = 1000;
 
 	HyperParameters hp1;
 	HyperParameters hp2;
-	hp1.NEURON_SIZE = 30;
-	hp2.NEURON_SIZE = 50;
+	hp1.NEURON_SIZE = 20;
+	hp2.NEURON_SIZE = 20;
 	string PATH = "datasets/toy_dataset.csv";
 	SharedNetwork shared_net;
 
@@ -38,7 +38,7 @@ int main(int argc, char *argv[]){
 		shared_net.mergeNeuron(shared_net.sub_networks[0]->neurons[hp1.NEURON_SIZE-1-i], shared_net.sub_networks[1]->neurons[hp2.NEURON_SIZE-1-i]);
 	}
 
-	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 2);
+	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 3);
 
 
 
