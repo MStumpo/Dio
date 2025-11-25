@@ -1,4 +1,4 @@
-sub_net,data_id,shuffle,values #OK HERE'S HOW IT WORKS: 
+sub_net,data_id,shuffle,values #OK HERE'S HOW IT WORKS: sub_net is the specific sub network that is exposed to these values, data_id is a sequential data index which should always increase in increments of 1. If the same sub_net contains multiple 0->n sequences then the sub_net will generate multiple terminals for each set. The max value of data_id should also be the same as the datasetmanager always just increases to increment%size. Shuffle value 1 ignores this order and in each update a random datapoint is given. The data_manager struct has a field dataset which is just a big ol vector of vectors of vectors that is read [TERMINALID][DATA_INDEX][BIT]. The values are pretty self explanatory, but they are clamped in the same order as written. The terminal will always clamp from the smallest possible index of sub_net neurons.
 0,0,0,111000
 0,1,0,011100
 0,2,0,001110

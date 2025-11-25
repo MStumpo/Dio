@@ -24,7 +24,6 @@ struct SharedNetwork {
     vector<NeuronPointer> neurons;
     vector<EdgePointer> edges;
     vector<unique_ptr<Network>> sub_networks;
-    vector<DataTerminal> terminals;
     unique_ptr<DatasetManager> data_manager;
 
     NeuronPointer makeNeuron(uint8_t v, Network* n);

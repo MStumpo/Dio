@@ -8,16 +8,16 @@
 struct HyperParameters {
     size_t NEURON_SIZE = 10;
     double lr = 0.01;
-    double reg = 0.001;
+    double reg = 0.01;
     double entropy_factor = 1.0;
-    double decay = 0.01;
-    double u_decay = 0.01;
+    double decay = 0.1;
+    double u_decay = 0.1;
     double determinism = 0.5;
     double firing_value = 1.0;
 
     std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false};
     std::vector<std::pair<double,double>> limits = {
-        {1e-3,1.0},{1e-3,1.0},{-5.0,5.0},{0.0,1.0},{0.0,1.0},{0.0,1.0},{-3.0,3.0}
+        {1e-3,1.0},{1e-3,1.0},{-2.0,2.0},{0.00,1.0},{0.00,1.0},{0.0,1.0},{-3.0,3.0}
     };
 
 

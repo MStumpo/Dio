@@ -122,10 +122,10 @@ void SharedNetwork::neuronFiring() {
 }
 
 void SharedNetwork::clampData(){
-    for(DataTerminal& terminal : terminals){
-        if(terminal.clamped){
-            for(int i = 0; i < terminal.coordinates.size(); i++){
-                terminal.coordinates[i]->value = terminal.values[i];
+    for(unique_ptr<DataTerminal>& terminal : data_manager->terminals){
+        if(terminal->clamped){
+            for(int i = 0; i < terminal->coordinates.size(); i++){
+                terminal->coordinates[i]->value = terminal->values[i];
             }
         }
     }
@@ -139,28 +139,35 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
     string message;
     for(int i = 0; i < iterations; i++){
         message = "";
+        if(verb >= 4){
+            message.append(" HyperParameters (lr, reg, entropy_factor, decay, u_decay, det, firing_value): ");
+            for(auto& net : sub_networks){
+                for(int p = 0; p < net->hp.size(); p++) message.append(format(" {:.3},", net->hp[p]));
+                message.append("\n | ");
+            }
+        }
         if(verb >= 3){
             message.append(" ADJ MATRICES: \n");
             for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
-        }else if(verb >= 2){
-	    message.append(" NETS: ");
+        }if(verb >= 2){
+	    message.append("\n NETS: ");
  	    for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
-       }else if(verb >= 1){
-            message.append(" SCORES: ");
+       }if(verb >= 1){
+            message.append("\n SCORES: ");
             for(double score : current_scores) message.append(format(" {:} : " ,score/((1+i%optimize_period)*test_window)));
         }
         progress_bar(i, iterations, message);
 	for(int t = 0; t < train_window + null_window + test_window; t++ ){
-            if(t == 0) for(DataTerminal& terminal : terminals) terminal.clamped = true;
-            if(t == train_window) for(DataTerminal& terminal : terminals) terminal.clamped = false;
-            if(t == train_window + null_window)  for(DataTerminal& terminal : terminals) if(!terminal.calibration) terminal.clamped = false;
+            if(t == 0) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = true;
+            if(t == train_window) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = false;
+            if(t == train_window + null_window)  for(unique_ptr<DataTerminal>& terminal: data_manager->terminals) terminal->clamped = terminal->calibration; 
+
             clampData();
         	neuronFiring();
-        	updateTrace();
-        	for(auto& net : sub_networks){
-        		net->adj.updateAdj();
-        	}
+            clampData();
 
+        	updateTrace();
+        	for(auto& net : sub_networks) net->adj.updateAdj();
 
             if(t >= train_window + null_window){
                 for(int s = 0; s < current_scores.size(); s++){

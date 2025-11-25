@@ -17,7 +17,7 @@ int main(int argc, char *argv[]){
 
 	int TRAIN_WINDOW = 30;
 	int TEST_WINDOW = 30;
-	int NULL_WINDOW = 10;
+	int NULL_WINDOW = 3;
 	int TOTAL_ITERATIONS = 1000000;
 	int OPTIMIZE_ITERATIONS = 1000;
 
@@ -25,20 +25,22 @@ int main(int argc, char *argv[]){
 	HyperParameters hp2;
 	hp1.NEURON_SIZE = 20;
 	hp2.NEURON_SIZE = 20;
-	string PATH = "datasets/toy_dataset.csv";
+	string PATH = "datasets/papa_gpt_generated.csv";
 	SharedNetwork shared_net;
 
 	shared_net.makeSubNetwork(hp1);
 	shared_net.makeSubNetwork(hp2);
 
 	shared_net.createDatasetManager(PATH);
-	shared_net.data_manager->createScoreRule({0},{1.0},{0,1});
+	shared_net.data_manager->createScoreRule({1},{1.0},{0,1}); // createScoreRule(vector<int> TERMINAL ----> ids, vector<double> weights, vector<int> eval_ids
+	shared_net.data_manager->terminals[0]->calibration = true;
 
-	for(int i = 0; i < 7; i++){
+
+	for(int i = 0; i < 5; i++){
 		shared_net.mergeNeuron(shared_net.sub_networks[0]->neurons[hp1.NEURON_SIZE-1-i], shared_net.sub_networks[1]->neurons[hp2.NEURON_SIZE-1-i]);
 	}
 
-	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 3);
+	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 69);
 
 
 

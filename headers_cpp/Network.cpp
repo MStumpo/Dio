@@ -53,6 +53,7 @@ void Network::AdjMatrix::updateAdj() {
         for (int j = 0; j < N; j++) {
             data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
+            //printf("\nDEBUG GGG %d, %d, %f, %f",parent.neurons[i]->value, parent.neurons[j]->value, data[i][j]->U, parent.hp.u_decay);
         }
     }
 }
@@ -60,7 +61,7 @@ void Network::AdjMatrix::updateAdj() {
 
 // ------------------- Network -------------------
 Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
-    : shared(s), adj(*this), hp(hp_arg), opt(hp_arg) {
+    : shared(s), adj(*this), hp(hp_arg) {
 
     for (size_t i = 0; i < hp_arg.NEURON_SIZE; i++) {
         NeuronPointer n = make_shared<Neuron>(false, 0.0, this);
