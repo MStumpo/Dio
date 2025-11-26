@@ -15,16 +15,16 @@
 using namespace std;
 int main(int argc, char *argv[]){
 
-	int TRAIN_WINDOW = 30;
-	int TEST_WINDOW = 30;
+	int TRAIN_WINDOW = 15;
+	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
 	int TOTAL_ITERATIONS = 1000000;
 	int OPTIMIZE_ITERATIONS = 1000;
 
 	HyperParameters hp1;
 	HyperParameters hp2;
-	hp1.NEURON_SIZE = 20;
-	hp2.NEURON_SIZE = 20;
+	hp1.NEURON_SIZE = 15;
+	hp2.NEURON_SIZE = 15;
 	string PATH = "datasets/papa_gpt_generated.csv";
 	SharedNetwork shared_net;
 
@@ -40,7 +40,7 @@ int main(int argc, char *argv[]){
 		shared_net.mergeNeuron(shared_net.sub_networks[0]->neurons[hp1.NEURON_SIZE-1-i], shared_net.sub_networks[1]->neurons[hp2.NEURON_SIZE-1-i]);
 	}
 
-	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 69);
+	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
 
 
 

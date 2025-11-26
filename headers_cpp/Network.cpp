@@ -51,8 +51,12 @@ void Network::AdjMatrix::updateAdj() {
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
+            
             data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
+
+            //data[i][j]->value += parent.hp.lr * (data[i][j]->destination->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) + parent.hp.reg * (data[i][j]->sender->trace - data[i][j]->destination->trace));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
+
             //printf("\nDEBUG GGG %d, %d, %f, %f",parent.neurons[i]->value, parent.neurons[j]->value, data[i][j]->U, parent.hp.u_decay);
         }
     }
