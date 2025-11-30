@@ -159,7 +159,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
 
             clampData();
         	neuronFiring();
-            //clampData();
+            clampData();
 
         	updateTrace();
         	if(t < train_window) for(auto& net : sub_networks) net->adj.updateAdj();
