@@ -157,7 +157,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
             if(t == train_window) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = false;
             if(t == train_window + null_window)  for(unique_ptr<DataTerminal>& terminal: data_manager->terminals) terminal->clamped = terminal->calibration; 
 
-            clampData();
+            //clampData();
         	neuronFiring();
             clampData();
 

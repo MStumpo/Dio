@@ -12,16 +12,23 @@ using namespace std;
 Network::AdjMatrix::AdjMatrix(Network& parent_network)
     : parent(parent_network) {}
 
-vector<double> Network::AdjMatrix::colEntropy() {
-    size_t N = data.size();
-    vector<double> entropy(N, 0.0);
+vector<double> Network::AdjMatrix::colEntropy(){
+    double range = 2; // -1 to 1
 
-    for (size_t col = 0; col < N; col++) {
-        for (size_t row = 0; row < N; row++) {
-            if (data[row][col]->value != 0.0)
-                entropy[col] += -abs(data[row][col]->value) * log(abs(data[row][col]->value));
-        }
-        entropy[col] /= N;
+    size_t N = data.size();
+    int n_bins = ceil(sqrt(data.size())); //rule o thomb
+
+    vector<double> entropy(N,0.0);
+    for (size_t col = 0; col < N; col++){
+	vector<double> counts(n_bins, 0); // counts[i] is between min + i*range/n_bins and min + (i+1)*range/n_bins <-- i = floor((x-min)*n_bins/range)
+	for (size_t row = 0; row < N; row++){
+		counts[floor((data[row][col]->value + 1)*n_bins/range)]++;
+	}
+	for(int count : counts){
+		double p = double(count)/N;
+		if(p > 0) entropy[col] -= p*log2(p);
+	}
+	entropy[col] /= log2(n_bins);
     }
     return entropy;
 }
@@ -51,10 +58,9 @@ void Network::AdjMatrix::updateAdj() {
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            
             //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr *data[i][j]->destination->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg*data[i][j]->value*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->trace);
+            data[i][j]->value += parent.hp.lr *data[i][j]->destination->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg*data[i][j]->value*(pow(data[i][j]->sender->trace,2) + pow(data[j][i]->sender->trace, 2));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
 
             //printf("\nDEBUG GGG %d, %d, %f, %f",parent.neurons[i]->value, parent.neurons[j]->value, data[i][j]->U, parent.hp.u_decay);

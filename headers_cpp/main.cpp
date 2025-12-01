@@ -18,8 +18,8 @@ int main(int argc, char *argv[]){
 	int TRAIN_WINDOW = 15;
 	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
-	int TOTAL_ITERATIONS = 1000000;
-	int OPTIMIZE_ITERATIONS = 1000;
+	int TOTAL_ITERATIONS = 100000;
+	int OPTIMIZE_ITERATIONS = 500;
 
 	HyperParameters hp1;
 	HyperParameters hp2;
