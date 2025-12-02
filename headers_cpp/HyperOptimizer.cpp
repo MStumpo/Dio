@@ -27,7 +27,7 @@ HyperParameters HyperOptimizer::propose(size_t N) {
         }
 
         // add noise and clip to limits
-        double noise = 0.1*dist(rng)*(1.0 - total_score)*(is_log ? log(estimated.limits[p].second) - log(estimated.limits[p].first): estimated.limits[p].second - estimated.limits[p].first); //be careful with the baseline here
+        double noise = 0.05*dist(rng)*(1.0 - total_score)*(is_log ? log(estimated.limits[p].second) - log(estimated.limits[p].first): estimated.limits[p].second - estimated.limits[p].first); //be careful with the baseline here
 
         weighted_sum += noise;
 

@@ -76,9 +76,12 @@ void DatasetManager::createScoreRule(vector<int> ids, vector<double> weights, ve
 }
 
 void DatasetManager::updateCurrentValues(){
+    int rand_idx = rand()%dataset[0].size(); //we need to assume all terminals have the same number of indices  
     for(int i = 0; i < dataset.size(); i++){//[terminal ID][data index][bit]
         if(!shuffle[i]){ terminals[i]->updateValues(dataset[i][(current_iteration+1)%dataset[i].size()]);}
-        else {terminals[i]->updateValues(dataset[i][rand()%dataset[i].size()]);}
+        else {
+            terminals[i]->updateValues(dataset[i][rand_idx]);
+        }
     }
     current_iteration++;
 }

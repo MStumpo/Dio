@@ -12,7 +12,7 @@ using namespace std;
 Network::AdjMatrix::AdjMatrix(Network& parent_network)
     : parent(parent_network) {}
 
-vector<double> Network::AdjMatrix::colEntropy(){
+vector<double> Network::AdjMatrix::colEntropy(){ // + col average
     double range = 2; // -1 to 1
 
     size_t N = data.size();
@@ -20,15 +20,19 @@ vector<double> Network::AdjMatrix::colEntropy(){
 
     vector<double> entropy(N,0.0);
     for (size_t col = 0; col < N; col++){
-	vector<double> counts(n_bins, 0); // counts[i] is between min + i*range/n_bins and min + (i+1)*range/n_bins <-- i = floor((x-min)*n_bins/range)
-	for (size_t row = 0; row < N; row++){
-		counts[floor((data[row][col]->value + 1)*n_bins/range)]++;
-	}
-	for(int count : counts){
-		double p = double(count)/N;
-		if(p > 0) entropy[col] -= p*log2(p);
-	}
-	entropy[col] /= log2(n_bins);
+    	vector<double> counts(n_bins, 0); // counts[i] is between min + i*range/n_bins and min + (i+1)*range/n_bins <-- i = floor((x-min)*n_bins/range)
+        double sum = 0.0;
+    	for (size_t row = 0; row < N; row++){
+            int idx = floor((data[row][col]->value + 1) * n_bins / range);
+            if(idx == n_bins) idx = n_bins -1;
+            counts[idx]++;
+            sum += (data[row][col]->value);
+        }
+    	for(int count : counts){
+    		double p = double(count)/N;
+    		if(p > 0) entropy[col] -= p*log2(p);
+    	}
+    	entropy[col] = (entropy[col]/log2(n_bins)) + sum/N;
     }
     return entropy;
 }
@@ -60,10 +64,8 @@ void Network::AdjMatrix::updateAdj() {
         for (int j = 0; j < N; j++) {
             //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr *data[i][j]->destination->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg*data[i][j]->value*(pow(data[i][j]->sender->trace,2) + pow(data[j][i]->sender->trace, 2));
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
-
-            //printf("\nDEBUG GGG %d, %d, %f, %f",parent.neurons[i]->value, parent.neurons[j]->value, data[i][j]->U, parent.hp.u_decay);
         }
     }
 }

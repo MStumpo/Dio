@@ -16,10 +16,10 @@ using namespace std;
 int main(int argc, char *argv[]){
 
 	int TRAIN_WINDOW = 15;
-	int TEST_WINDOW = 15;
+	int TEST_WINDOW = 10;
 	int NULL_WINDOW = 3;
-	int TOTAL_ITERATIONS = 100000;
-	int OPTIMIZE_ITERATIONS = 500;
+	int TOTAL_ITERATIONS = 10000000;
+	int OPTIMIZE_ITERATIONS = 10000;
 
 	HyperParameters hp1;
 	HyperParameters hp2;

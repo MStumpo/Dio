@@ -96,6 +96,15 @@ void SharedNetwork::updateTrace() {
                e->sender->members[0]->hp.u_decay * e->sender->trace * 2 * (e->destination->value - 0.5);
     }
 }
+void SharedNetwork::resetRandom(){
+    mt19937 gen(random_device{}());
+    uniform_real_distribution<double> unif(-1.0, 1.0);
+    for(auto& e : edges){
+        e->value = unif(gen);
+        e->destination->value = false;
+        e->sender->value = false;
+    }
+}
 
 void SharedNetwork::neuronFiring() {
     mt19937 gen(random_device{}());
@@ -130,7 +139,6 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
 
     vector<double> current_scores(data_manager->score_calculators.size(), 0.0);
     string message;
-    //if(verb > 0) printf("\33[?1049h"); 
     for(int i = 0; i < iterations; i++){
 	for(int t = 0; t < train_window + null_window + test_window; t++ ){
             message = "";
@@ -147,12 +155,11 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
             }if(verb >= 2){
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
-           }if(verb >= 1){
+            }if(verb >= 1){
                 message.append("\n SCORES: ");
                 for(double score : current_scores) message.append(format(" {:} : " ,score/((1+i%optimize_period)*test_window)));
             }
             if (verb> 0) progress_bar(i, iterations, message);
-
             if(t == 0) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = true;
             if(t == train_window) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = false;
             if(t == train_window + null_window)  for(unique_ptr<DataTerminal>& terminal: data_manager->terminals) terminal->clamped = terminal->calibration; 
@@ -180,6 +187,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
                 }
             }
             current_scores = vector<double>(data_manager->score_calculators.size(), 0.0);
+            //resetRandom();
         }
         data_manager->updateCurrentValues();
     }
