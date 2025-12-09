@@ -16,15 +16,15 @@ using namespace std;
 int main(int argc, char *argv[]){
 
 	int TRAIN_WINDOW = 15;
-	int TEST_WINDOW = 10;
+	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
-	int TOTAL_ITERATIONS = 10000000;
-	int OPTIMIZE_ITERATIONS = 10000;
+	int TOTAL_ITERATIONS = 1000000;
+	int OPTIMIZE_ITERATIONS = 1000;
 
 	HyperParameters hp1;
 	HyperParameters hp2;
-	hp1.NEURON_SIZE = 15;
-	hp2.NEURON_SIZE = 15;
+	hp1.NEURON_SIZE = 18;
+	hp2.NEURON_SIZE = 14;
 	string PATH = "datasets/papa_gpt_generated.csv";
 	SharedNetwork shared_net;
 

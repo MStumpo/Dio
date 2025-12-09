@@ -3,7 +3,6 @@
 #include <cmath>
 #include <omp.h>
 #include <algorithm>
-
 #include "SharedNetwork.h"
 
 using namespace std;
@@ -37,6 +36,66 @@ vector<double> Network::AdjMatrix::colEntropy(){ // + col average
     return entropy;
 }
 
+pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContribution() { // first: (I-M)^-1 - I second: colEntropy
+    int n = data.size();
+    vector<vector<double>> A(n, vector<double>(n));
+    vector<vector<double>> I(n, vector<double>(n));
+
+    double range = 2;
+    int n_bins = ceil(sqrt(n));
+    vector<double> entropy(n, 0.0);
+
+    // Build A = I - M + fill entropy
+    for (size_t col = 0; col < n; col++) {
+        I[col][col] = 1.0;
+        vector<double> counts(n_bins,0);
+        double sum = 0.0;
+        for (size_t row = 0; row < n; row++) {
+            double Mij = data[row][col]->value;
+            A[row][col] = (row == col ? 1.0 : 0.0) - Mij;
+            int idx = floor((data[row][col]->value + 1 )*n_bins/range);
+            if(idx == n_bins) idx = n_bins -1;
+            counts[idx]++;
+            sum += data[row][col]->value;
+        }
+        for(int count : counts){
+            double p = double(count)/n;
+            if(p > 0) entropy[col] -= p*log2(p);
+        }
+        entropy[col] = (entropy[col]/log2(n_bins)) + sum/n;
+    }
+
+    // Gauss–Jordan
+    for (int col = 0; col < n; col++) {
+        int pivot = col;
+        for (int r = col + 1; r < n; r++)
+            if (fabs(A[r][col]) > fabs(A[pivot][col]))
+                pivot = r;
+
+        swap(A[col], A[pivot]);
+        swap(I[col], I[pivot]);
+
+        double div = A[col][col];
+        for (int j = 0; j < n; j++) {
+            A[col][j] /= div;
+            I[col][j] /= div;
+        }
+
+        for (int r = 0; r < n; r++) {
+            if (r == col){
+		 I[r][col] -= 1;
+	    	continue;
+	    }
+            double f = A[r][col];
+            for (int j = 0; j < n; j++) {
+                A[r][j] -= f * A[col][j];
+                I[r][j] -= f * I[col][j];
+            }
+        }
+    }
+    return make_pair(I, entropy);
+}
+//_____________________
 void Network::AdjMatrix::initialize() {
     random_device rnd_device;
     mt19937 rng(rnd_device());
@@ -53,18 +112,21 @@ void Network::AdjMatrix::initialize() {
             parent.shared->edges.push_back(e);
         }
     }
+
 }
 
 void Network::AdjMatrix::updateAdj() {
     size_t N = data.size();
-    vector<double> E = colEntropy();
+    auto A = entropyAndContribution();
+    vector<vector<double>> C = A.first;
+    vector<double> E = A.second;
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
             //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
         }
     }

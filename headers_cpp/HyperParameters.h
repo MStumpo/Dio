@@ -17,7 +17,7 @@ struct HyperParameters {
 
     std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false};
     std::vector<std::pair<double,double>> limits = {
-        {1e-3,1.0},{1e-2,2.0},{-2.0,2.0},{0.001,1.0},{0.001,1.0},{0.0,1.0},{-3.0,3.0}
+        {1e-5,0.5},{1e-4,1.0},{-2.0,2.0},{0.001,1.0},{0.001,1.0},{0.0,1.0},{-3.0,3.0}
     };
 
 

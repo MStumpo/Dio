@@ -42,6 +42,7 @@ class Network {
 
         std::vector<double> colEntropy();
 
+        std::pair<std::vector<std::vector<double>>, std::vector<double>> entropyAndContribution();
     public:
         std::vector<std::vector<EdgePointer>> data;
         AdjMatrix(Network& parent_network);
