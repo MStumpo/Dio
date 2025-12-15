@@ -21,53 +21,135 @@ Do these bits have a pattern? Is there even a pattern? The answer is… yes and 
 
 Note: I call the nodes in the network "neurons" but they operate somewhat differently than neurons in a regular DL network
 
+# Model Architecture
 
-### Structure
+## Shared Network → Networks → Neurons/Edges
 
-The Network object contains $n$ neurons which are placeholders for a binary value (`true`, `false`) and an `AdjacencyMatrix` object which contains a $n*n$ matrix detailing directional relationships from any neuron (column) to any other (row). This is not a real adjacency matrix in the sense that it doesn't represent absolute weights of values transferred between neurons, but can be a mix between a probabilistic signal and a regular linear weight (which can be tuned via the `--determinism` parameter) that is then processed in neuron firing, which is discussed below.
+### Neuron
+A neuron is an object which holds a binary value, a trace value between 0 and 1, and a reference to its parent networks (yes, networks). It is the fundamental unit of this and serves as a simple placeholder. It’s closer to a node than an actual neuron but hey, I’m bad with names.
 
-### Timesteps
+### Edge
+An Edge object connects two neurons as a sender and destination. It also holds a value between -1 and 1 which represents the strength of the connection, which is explained below. It also contains a “bidirectional” trace value between -1 and 1.
 
-What for now are called "timesteps" are iterations where one instance of neuron firing is carried out and all the signals carried by the neurons are carried once. In the code, an epoch is defined as set of iterations where all the datapoints are fed to the network, each for a set number of iterations before the next datapoint is fed (this can be set as `--time-window`). The network is envisioned to work in a real-time-like fashion where it can be exposed to data and learn continuously.
+### Network
+A Network is an object which holds pointers to all its neurons, a set of hyperparameters and an adjacency matrix. The adjacency matrix is not an actual matrix of values (nor adjacency since it doesn’t follow classical graph rules, but again bad with names), but instead a set of coordinates which correspond to an Edge object pointer.
 
-### Neuron Firing
+As mentioned before, a neuron can belong to multiple networks. When this happens it contains multiple parent networks and is the very same neuron in both networks (even if the edges leading to it have different coordinates in each adjacency matrix). For now only the first network’s hyperparameters affect its properties.
 
-The `neuronFiring` method of the network is responsible for taking the binary signals in the network and moving them around with respect to the adjacency matrix. The adjacency matrix, when determinism is 0, contains values from -1 to 1 where the absolute value is treated as a probability of firing the current signal and the sign is treated as whether the signal is positive or negative (for example: if a neuron carrying 1 has a "synapse" of 0.5 to another one, the receiving neuron has a 50% chance of having its final state increased by 1, and for a value of -0.5 the receiving neuron has a 50% chance of having its final state decreased by 1).`adjMatrix[i][j]` represents the connection from the i'th neuron to the j'th. During the firing the neurons attain a temporary sum of their receiving values which are then clipped to either 0 or 1 in the end for the next timestep (according to whether or not the sum is bigger than the firing value, which is modifiable by `--firing-value` but defaults at 1.0). In this way even though neurons can only carry positive values they can be inhibitory to some and excitatory to others. The `--determinism` parameter splits the signal into a guaranteed sum of $determinism$ and a possible sum of $1 - determinism$ if a random value check passes the respective adjacency matrix value (which itself is not modified by determinism).
+### SharedNetwork
+The set of all networks in the model, and it also holds the pool of all neurons and edges that the Network objects point to. Every actual action that runs values through the networks and neurons and etc over time is run at this level.
 
-### Neuron history and correlation
+### DataTerminal
+A structure which points to a fixed set of neurons and holds its own values. Can be turned on and off via clamping and can be set to calibrate or not (which determines if it’s on during testing phases). This is used to both read certain neuron’s values and override them to feed data into the network.
 
-In every timestep the current state of the neurons is stored in a `neuronHistory` object (a `vector<vector<bool>>`). It's updated via `push_back` so the larger indices represent more recent values. When updating the adjacency matrix, it's possible to calculate a $n*n$ correlation matrix from every neuron to every other in an assymetric manner based on the timing of different true values. `correlation[i][j]` represents j's correlation from i, to which is added a positive score every time j attains a true value (in timestep $t_2$) after i attains a true value (in timestep $t_1$), or a negative score when vice versa. Both scores can be calculated via:
+### DatasetManager
+Reads a csv file which contains info about which terminals it points to, if it’s shuffled or not and the values. It holds the current “instant” in the dataset timeline (if not shuffled) and updates the values in the data terminals.
 
-$\LARGE e^{\frac{|\Delta t|}{\tau_+}} * decay^{size - max(t_1,t_2)}$ and $\LARGE -e^{\frac{|\Delta t|}{\tau_-}} * {1-decay}^{size - max(t_1,t_2)}$ 
+### HyperOptimizer
+Each sub-network contains one, it holds a history of what hyperparams the network had and the score it originated from. It can be updated with new hyperparam/score data and propose hyperparams based on a genetic algo to maximize score.
 
-The decay value determines how much each historic firing event is depreciated based on how old it is and to decrease overfitting in continuous updates. This formula is based on spike-dependent time plasticity as it's used in various neuromorphic models. $\tau_+$, $\tau_-$ and $decay$ can be modified via `--tau-pos`, `--tau-neg` and `--decay`.
+### ScoreManager
+It calculates score based on a set of terminals and their value similarities (and weights) and also points to which networks it should be applied to. For example in this demo we have network 0 and 1 that are connected to terminals 0 and 1 that represent “input” and “output” respectively (, respectively?). In this case I calculate a score based on only terminal 1 and apply the optimization to networks 0 and 1 so both evolve based on network 1’s output.
 
-### Cross Kernel Matrix Entropy
+---
 
-This fancy expression literally means a $n\*n$ matrix filled with entropy values calculated from a cross-shaped kernel throughout the adjacency matrix. A sliding cross is taken and all the values in the range of `kernelSize` (modifiable via `--kernel-size`) are taken and calculated via the shannon entropy formula ( $-p*log(p)$ ) for the respective adjacency matrix element. Since adjacency matrix values can be negative and hence not real probabilities, kernel normalization ( `--kernel-normalization 0 or 1` ) can be implemented to either consider $p = |adjMatrix[i][j]|$ or $p = (adjMatrix[i][j] + 1)/2$ . The final returned value is normalized so that the matrix entropy values are between 0 and 1. These entropy values are then directly multiplied in the total update and can be used to directly control the "chaos" of the network. The rationale is the interpretation of entropy as a measure of additive relative surprise and the curve achieves a maximum between 0 and 1 (closer to 0) and is equal to 0 when $p = 1$ or 0. This allows to bias the learning towards "neat" values (-1, 0 or 1) and avoid (or promote) "disorganized" and highly probabilistic networks. The cross kernel is meant to only consider neighboring synapses such as neurons that receive from the same neuron or synapses in the same receiving neuron from other neurons.
+# Model running during supervised episodes
 
-### Adjacency matrix update
+These read one or more terminals to get scores and test the network’s ability to reproduce non-calibration terminal values.
 
-$\LARGE adjMatrix[i][j] \+\= lr\*crossCorrelation[i][j]\*reward*{entropy[i][j]}^{entropyFactor} - reg*adjMatrix[i][j]$, clipped to $[-1,1]$
+The shared network runs cycles of iterations where at each one the value is transferred once. These cycles are composed of a train window, null window, test window.
 
-At each timestep, this update is made to every member of the adjacency matrix. The reward is not used for now, but can be implemented if there is a need for a global "don't do that" or "do more of that" signal to update for the real-time correlation. The reg value, between 0 and 1, is meant to promote unstable small updates and will push `adjMatrix[i][j]` toward 0 unless the active update term is able to "overcome" it. These values can be adjusted via `--lr`, `--entropy-factor` and `--reg`.
+| Calibration | Train window | Null window | Test window |
+|-------------|--------------|-------------|-------------|
+| True        | Clamped      | Unclamped   | Clamped     |
+| False       | Clamped      | Unclamped   | Unclamped   |
 
+This is not supposed to be how the model operates on the field where it’s unsupervised but this is supposed to represent interspaced stimuli with a neutral window where the model’s internal values stabilize. This also allows for scoring that we can use to determine the best hyperparams. The edges are only updated during the train window as it’s only during this one where we want plasticity. In every of a set amount of these cycles the final score is accumulated and fed to the optimizers in the networks and new hyperparams are proposed.
 
-## Training and metrics
+---
 
-### During training
+# Neuron firing
 
-For each epoch the neuron history is cleared but the neuron state is maintained (in case of circular connections for some neurons to constitutively send signals). Both input and output data are clamped (which means the receiving values of the input and output neurons are overriden with the respective sequences) at each timestep for the duration of one time window per datapoint. At each timestep correlation and adjMatrix update rules are applied as per explained above.
+Each edge transfers the value from a sender to a destination. It however represents a semi-deterministic connection where the sign represents the discrete behavior of exciting or depressing and the absolute value represents the strength of the connection. What this means is that each network has a determinism fraction between 0 and 1. The firing is given by a random check per each trace.
 
-### During testing
+At each iteration:
 
-The same procedure as in training. For now the entire training dataset is fed back but in the case of logic-related datapoints ([0,a,b,c,d,e] → [0/1]*3) new datapoints should be generated. Neuron history, correlation calculations or adjMatrix updates are not made as the connections are assumed to be static, but the neuron states are inherited from the last state during training for the same reasons as before. Only input is clamped, hence the same output neurons will be free to assume new states during each datapoint’s time window and a score is applied.
+```markdown
+neuron[j]_buffer = 0
 
+for any neuron[i] == 1:
+    if random < abs(edge[i][j]):
+        neuron[j]_buffer += {1.0 or -1.0 depending on if edge[i][j] is positive or negative}
+    else:
+        neuron[j]_buffer += determinism * {1.0 or -1.0 depending on if edge[i][j] is positive or negative}
 
-### Scoring
+Afterwards, for each neuron buffer:
+    if buffer > firing value:
+        neuron[j]_spike = 1
+    else:
+        neuron[j]_spike = 0
+```
 
-For every epoch, the total amount of iterations are $\LARGE timeWindow*#datapoints$. For every iteration -1 is added for every mismatch and +1 is added for every match. As such the score is divided by $\LARGE timeWindow*#datapoints*outputSize$. This is repeated currently for 10 epochs for robustness.
+Both the firing value (any real value) and determinism are hyperparams to be optimized.
 
-If a dataset’s outputs contain a $\LARGE p = #trues/{#trues + #falses}$, then random guessing with a probability of picking true q, then the score would be expected to be $\LARGE p*q + (1-p)*(1-q) – (p*(1-q) + (1-p)*q) = 4*qp – 2*p – 2*q + 1$. A biased guessing towards the most abundant bit would then be $\LARGE |2*p – 1|$. This notion is very important as to achieve a proof-of-concept we cannot rely on an >0 score, but a score significantly above this threshold. This is also why generated datasets are not recommended without curation as uneven output sets could potentially hinder training in place of advantageous guessing.
+---
 
-I haven’t got optimal scores except a non-recorded 1.0 score on a previous version (containing errors in the entropy calculation) with a dataset with each datapoint consisting of 2 bits and a respective AND outcome (1 if all 1).
+# Neuron and edge traces
+
+These represent how recently active these were. They’re updated at the shared network level since they’re not dependent on matrix operations and it’s easier to update the whole pool instead of tracking duplicated operations etc etc. They are also always updated regardless of the cycle phase. The update follows using a non-linear moving average that, given a decay rate, is expressed via:
+
+$$
+\x(t+1) = x(t)(1 - e^{-\text{decay}}) + \text{decay} \cdot \text{new\_val} \]
+$$
+
+## Neuron trace
+
+$$
+\T(t+1) = T(t)(1 - e^{-\text{decay}}) + \text{trace\_decay} \cdot \text{spike}
+$$
+
+## Edge trace (U)
+
+$$
+\U(t+1) = U(t)(1 - e^{-U_{\text{decay}}}) + U_{\text{decay}} \cdot T_{\text{sender}} \cdot 2(\text{spike}_{\text{destination}} - 0.5)
+$$
+
+---
+
+# Edge update
+
+Since each network has its own hyperparams and requires matrix operations, plasticity happens at the level of these and not the Shared Network (which is why I made it like this, but please note I’m not claiming I made the best choices both in code and in life).
+
+The update rule the changes the actual capability of neuron-to-neuron firing is dependent on the destination neuron’s current value, the neurons traces, the U of the edge that’s being updated, and the other edges’ values in the network.
+
+## Column Entropy
+
+In order to promote heterogeneity between each neuron’s receiving values, entropy (E) is calculated via sum of entropy values of each edge’s value that points to each neuron. It is normalized to \([0,1]\) and is raised to the power of an entropy factor which is optimized.
+
+## Total Contribution
+
+The expected transferring of values given a matrix M is given by:
+
+$$\
+M + M^2 + M^3 + \ldots
+$$
+
+Which is approximately:
+
+$$\
+C = (I - M)^{-1} - I
+$$
+
+This is a new feature which hasn’t shown good results yet when included in the update.
+
+## Update rule
+
+$$\
+\text{edge}[i][j] += \text{lr}(
+\text{neuron}[j]_{\text{spike}} \cdot U[i][j]
+- \text{reg} \cdot C[i][j] \cdot (E[j]^{\text{entropy\_factor}})
+(\text{neuron[i]\_trace}^2 + \text{neuron[j]\_trace})
+)
+$$
+
+Why that last term neuron[i]_trace² + neuron[j]_trace? Tried a lot of combinations or omissions and this seemed to return the best results.

@@ -69,8 +69,7 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
     for (int col = 0; col < n; col++) {
         int pivot = col;
         for (int r = col + 1; r < n; r++)
-            if (fabs(A[r][col]) > fabs(A[pivot][col]))
-                pivot = r;
+            if (fabs(A[r][col]) > fabs(A[pivot][col])) pivot = r;
 
         swap(A[col], A[pivot]);
         swap(I[col], I[pivot]);
@@ -83,7 +82,7 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
 
         for (int r = 0; r < n; r++) {
             if (r == col){
-		 I[r][col] -= 1;
+		I[r][col] -= 1;
 	    	continue;
 	    }
             double f = A[r][col];
@@ -126,8 +125,9 @@ void Network::AdjMatrix::updateAdj() {
         for (int j = 0; j < N; j++) {
             //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - C[i][j]*parent.hp.reg*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
+	    //printf("DEBUG %f \n", E[j]);
         }
     }
 }
