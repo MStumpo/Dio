@@ -53,7 +53,7 @@ int main(int argc, char *argv[]){
 	hp1.NEURON_SIZE = 30;
 	hp2.NEURON_SIZE = 30;
 	hp3.NEURON_SIZE = 30;
-	hp4.NEURON_SIZE = 21;
+	hp4.NEURON_SIZE = 30;
 
 
 	vector<int> INPUT_INDEXES = {0,1,2};

@@ -155,12 +155,7 @@ void NethackManager::step() {
         write(STDOUT_FILENO, "\n", 1);
     }
 
-    if (!player_found) {
-        turn_count = 0;
-        return;
-    }
-
-    turn_count++;
+    if(player_found)  turn_count++;
 
     for (int i = 0; i < input_nets.size(); i++) {
         terminals[i]->updateValues(
@@ -200,6 +195,10 @@ bool NethackManager::parseScreen(string screen) {
 
     if (pos < screen.size())
         lines.push_back(screen.substr(pos));
+
+    if (!lines.empty() && !lines[0].empty()) {
+        write(master_fd, "\n", 1);
+    }
 
     int player_r = -1;
     int player_c = -1;
@@ -252,7 +251,7 @@ void NethackManager::sendAction() {
     int code = 0;
 
     for (int b = 0; b < BITS_PER_ACTION; b++) {
-        if (terminals.back()->coordinates[b]->value) code++;
+        code |= terminals.back()->coordinates[b]->value << b;
     }
 
     int action_idx = code % actions.size();

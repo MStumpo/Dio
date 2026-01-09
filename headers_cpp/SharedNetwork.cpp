@@ -243,7 +243,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
     if(verb == 0) nh->watch = false;
 
     while (game <= n_games) {
-        this_thread::sleep_for(10ms); // I couldn't be more bothered to implement a dynamic weight. I've literally spent 2 weeks trying to make the timing work and it was 1 week to do everything else since the last commit. Yes it was my fault I threw myself head first without knowing threading properly (and I guess I still don't know considering this is my final solution) but I'm not a game developer, or even a developer period, so screw this, screw me, and thank you person who is not me if you actually read this.
+        this_thread::sleep_for(50ms); // I couldn't be more bothered to implement a dynamic weight. I've literally spent 2 weeks trying to make the timing work and it was 1 week to do everything else since the last commit. Yes it was my fault I threw myself head first without knowing threading properly (and I guess I still don't know considering this is my final solution) but I'm not a game developer, or even a developer period, so screw this, screw me, and thank you person who is not me if you actually read this.
         double score = nh->getScore();
         nh->step();     
 
