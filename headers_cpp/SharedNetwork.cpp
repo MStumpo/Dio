@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <string>
 #include <format>
+#include <thread>
 using namespace std;
 
 
@@ -53,8 +54,15 @@ void SharedNetwork::createDatasetManager(string path) {
     data_manager = std::move(std::make_unique<DatasetManager>(this, path));
 };
 
+void SharedNetwork::createNethackManager(vector<int> input_indexes, int output_index){
+    nh = std::move(std::make_unique<NethackManager>(this, input_indexes, output_index));
+}
+
 // ---------------- Merge neurons ---------------- IN THIS CASE edges aren't removed from AdjMatrix because I still want both networks to be able to modify the merged neuron
 void SharedNetwork::mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessive) {
+
+    if (dominant.get() == recessive.get()) return; //if you merge a neuron with itself it'll then get deleted and this whole thing breaks and that's what they call a no bueno in China
+
     unordered_set<Network*> seen(dominant->members.begin(), dominant->members.end());
     for (auto* ptr : recessive->members) {
         if (seen.insert(ptr).second) {
@@ -73,24 +81,47 @@ void SharedNetwork::mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessiv
         if (e->sender == recessive) e->sender = dominant;
         if (e->destination == recessive) e->destination = dominant;
     }
-
+    
     // Remove recessive neuron from list
     neurons.erase(remove(neurons.begin(), neurons.end(), recessive), neurons.end());
-
+    
     // Update reference
     recessive = dominant;
 }
 
+
+void SharedNetwork::mergeNeuronsFromMatrix(vector<vector<int>> matrix, bool overlap = false){ //i->j means network i merges matrix[i] neurons with network j (i dominant)
+    //Also rule of thumb: merged neurons get assigned back to front, terminals are assigned front to back (although terminals can bind to merged neurons, but it's probably not a good idea)
+    vector<int> buffer(matrix.size(), 0);
+    for(int r = 0; r < matrix.size(); r++) for(int c = 0; c < matrix[r].size(); c++) if(r != c && matrix[r][c] > 0){
+
+        for(int i = 0; i < matrix[r][c]; i++){
+            size_t idx_r = sub_networks[r]->hp.NEURON_SIZE-1 - buffer[r] - i;
+            size_t idx_c = sub_networks[c]->hp.NEURON_SIZE-1 - buffer[c] -i;
+            mergeNeuron(sub_networks[r]->neurons[idx_r], 
+            sub_networks[c]->neurons[idx_c]);
+        }
+        if(!overlap){
+            buffer[r] += matrix[r][c];
+            buffer[c] += matrix[r][c];
+        }
+    }
+}
+
 void SharedNetwork::makeSubNetwork(HyperParameters& hp){
+
     sub_networks.push_back(std::make_unique<Network>(this, hp));
+
 }
 
 // ---------------- Dynamics ---------------- Sender neuron's original net controls trace decay
 void SharedNetwork::updateTrace() {
-    for (auto& n : neurons) {
-        n->trace = n->trace * (1 - exp(-n->members[0]->hp.decay)) + n->members[0]->hp.decay * n->value;
-    }
 
+    for (auto& n : neurons) {
+        float dec = n->value ? (1 - exp(-n->members[0]->hp.decay)) : n->members[0]->hp.decay;
+        float upd = n->value ? n->members[0]->hp.decay : (1 - exp(-n->members[0]->hp.decay)) ;
+        n->trace = n->trace * dec + upd * n->value;
+    } 
     for (auto& e : edges) {
         e->U = e->U * (1 - exp(-e->sender->members[0]->hp.u_decay)) +
                e->sender->members[0]->hp.u_decay * e->sender->trace * 2 * (e->destination->value - 0.5);
@@ -124,7 +155,8 @@ void SharedNetwork::neuronFiring() {
     }
 }
 
-void SharedNetwork::clampData(){
+void SharedNetwork::clampData(bool is_nh = false){
+    if(!is_nh){
     for(unique_ptr<DataTerminal>& terminal : data_manager->terminals){
         if(terminal->clamped){
             for(int i = 0; i < terminal->coordinates.size(); i++){
@@ -132,7 +164,18 @@ void SharedNetwork::clampData(){
             }
         }
     }
+    }else{ //Let's call this a todo
+        for(unique_ptr<DataTerminal>& terminal : nh->terminals){
+            if(terminal->clamped){
+                for(int i = 0; i < terminal->coordinates.size(); i++){
+
+                    terminal->coordinates[i]->value = terminal->values[i];
+                }
+            }
+        }
+    }
 }
+
 
 void SharedNetwork::runDataset(int iterations, int train_window, int test_window, int null_window =0, int optimize_period = -1, int verb = 0){
     //Verbose: 0- nothing 1- scores 2 - network 3- network + adj 4-hps
@@ -143,7 +186,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
 	for(int t = 0; t < train_window + null_window + test_window; t++ ){
             message = "";
             if(verb >= 4){
-                message.append(" HyperParameters (lr, reg, entropy_factor, decay, u_decay, det, firing_value): \n");
+                message.append(" HyperParameters (lr, reg, entropy_factor, decay, u_decay, det, firing_value, c_factor): \n");
                 for(auto& net : sub_networks){
                     for(int p = 0; p < net->hp.size(); p++) message.append(format(" {:.3},", net->hp[p]));
                     message.append("\n");
@@ -164,9 +207,8 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
             if(t == train_window) for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = false;
             if(t == train_window + null_window)  for(unique_ptr<DataTerminal>& terminal: data_manager->terminals) terminal->clamped = terminal->calibration; 
 
-            //clampData();
         	neuronFiring();
-            clampData();
+            clampData(false);
 
         	updateTrace();
         	if(t < train_window) for(auto& net : sub_networks) net->adj.updateAdj();
@@ -191,6 +233,43 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
         }
         data_manager->updateCurrentValues();
     }
-    //if(verb > 0) printf("\33[?1049l");
+}
+void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
+    nh->launchNetHack();
+    bool alive = true;
+    int game = 0;
+    string message;
 
+    if(verb == 0) nh->watch = false;
+
+    while (game <= n_games) {
+        this_thread::sleep_for(10ms); // I couldn't be more bothered to implement a dynamic weight. I've literally spent 2 weeks trying to make the timing work and it was 1 week to do everything else since the last commit. Yes it was my fault I threw myself head first without knowing threading properly (and I guess I still don't know considering this is my final solution) but I'm not a game developer, or even a developer period, so screw this, screw me, and thank you person who is not me if you actually read this.
+        double score = nh->getScore();
+        nh->step();     
+
+        neuronFiring();
+        clampData(true);
+        updateTrace();
+        for(auto& net : sub_networks) net->adj.updateAdj();
+        
+        nh->sendAction();
+
+        string message = "";
+        if(verb >= 2){
+            message.append("\n NETS: ");
+            for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+        }
+        write(STDOUT_FILENO, message.data(), message.size());
+
+        if (nh->checkDeath()) {
+
+            for (auto& target : sub_networks)
+            {
+                target->opt.update(target->hp, score);
+                target->hp = target->opt.propose();
+            }
+            game++;
+            nh->resetGame();
+        }
+    }
 }

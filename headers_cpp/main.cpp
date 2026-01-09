@@ -15,11 +15,13 @@
 using namespace std;
 int main(int argc, char *argv[]){
 
+
+	/* //UNcomment this but comment the rest if you want to see dataset action
 	int TRAIN_WINDOW = 15;
 	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
-	int TOTAL_ITERATIONS = 1000000;
-	int OPTIMIZE_ITERATIONS = 1000;
+	int TOTAL_ITERATIONS = 10000000;
+	int OPTIMIZE_ITERATIONS = 10000;
 
 	HyperParameters hp1;
 	HyperParameters hp2;
@@ -41,9 +43,39 @@ int main(int argc, char *argv[]){
 	}
 
 	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
+	*/
+
+		//Nethack screen bits is 5x5x2 = 50
+	HyperParameters hp1;
+	HyperParameters hp2;
+	HyperParameters hp3;
+	HyperParameters hp4;
+	hp1.NEURON_SIZE = 30;
+	hp2.NEURON_SIZE = 30;
+	hp3.NEURON_SIZE = 30;
+	hp4.NEURON_SIZE = 21;
 
 
+	vector<int> INPUT_INDEXES = {0,1,2};
+	int OUTPUT_INDEX = 3;
 
+	vector<vector<int>> MERGE_MATRIX = {{0, 10, 0, 5},
+										{0, 0, 10,  5},
+										{0, 0, 0,  10},
+										{0, 0, 0,   0}};
 
+	SharedNetwork shared_net;
+
+	shared_net.makeSubNetwork(hp1);
+	shared_net.makeSubNetwork(hp2);
+
+	shared_net.makeSubNetwork(hp3);
+	shared_net.makeSubNetwork(hp4);
+
+	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
+
+	shared_net.createNethackManager(INPUT_INDEXES, OUTPUT_INDEX);
+
+	shared_net.runNethackOnline(300000, 69);
 	return 0;
 }

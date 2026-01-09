@@ -7,21 +7,22 @@
 
 struct HyperParameters {
     size_t NEURON_SIZE = 10;
-    double lr = 0.01;
+    double lr = 0.1;
     double reg = 0.1;
     double entropy_factor = 1.0;
     double decay = 0.1;
     double u_decay = 0.1;
-    double determinism = 0.5;
-    double firing_value = 1.0;
+    double determinism = 0.1;
+    double firing_value = 1;
+    double contrib_factor = 1.0;
 
-    std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false};
+    std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false, false};
     std::vector<std::pair<double,double>> limits = {
-        {1e-5,0.5},{1e-3,1.0},{-2.0,2.0},{0.001,1.0},{0.001,1.0},{0.0,1.0},{-3.0,3.0}
+        {1e-5,0.5},{1e-2,1.0},{-2.0,2.0},{0.001,1.0},{0.001,1.0},{0.0,1.0},{-3.0,3.0}, {0.0,1.0}
     };
 
 
-    size_t SIZE = 7;
+    size_t SIZE = 8;
 
     HyperParameters(size_t s = 10, double l = 0.01, double r = 0.001, double e = 1.0, double d = 0.01,
                     double u = 0.01, double det = 0.5, double f = 1.0)

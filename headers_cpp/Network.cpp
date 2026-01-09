@@ -51,12 +51,12 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
         vector<double> counts(n_bins,0);
         double sum = 0.0;
         for (size_t row = 0; row < n; row++) {
-            double Mij = data[row][col]->value;
+            double Mij = parent.hp.contrib_factor*data[row][col]->value;
             A[row][col] = (row == col ? 1.0 : 0.0) - Mij;
-            int idx = floor((data[row][col]->value + 1 )*n_bins/range);
+            int idx = floor((Mij + 1 )*n_bins/range);
             if(idx == n_bins) idx = n_bins -1;
             counts[idx]++;
-            sum += data[row][col]->value;
+            sum += Mij;
         }
         for(int count : counts){
             double p = double(count)/n;
@@ -125,9 +125,9 @@ void Network::AdjMatrix::updateAdj() {
         for (int j = 0; j < N; j++) {
             //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - C[i][j]*parent.hp.reg*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
-	    //printf("DEBUG %f \n", E[j]);
+	        //printf("DEBUG %f \n", C[i][j]);
         }
     }
 }

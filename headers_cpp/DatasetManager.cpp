@@ -10,11 +10,6 @@
 
 using namespace std;
 
-
-void DataTerminal::updateValues(vector<uint8_t> new_vals){
-	for(int i = 0; i < values.size(); i++) values[i] = new_vals[i];
-}
-
 DatasetManager::DatasetManager(SharedNetwork* net, string p) : shared_network(net), path(p){
 
     ifstream file(path);

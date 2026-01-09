@@ -11,6 +11,7 @@ double& HyperParameters::operator[](size_t i) {
         case 4: return u_decay;
         case 5: return determinism;
         case 6: return firing_value;
+        case 7: return contrib_factor;
         default: throw std::out_of_range("Invalid HyperParameter index");
     }
 }
