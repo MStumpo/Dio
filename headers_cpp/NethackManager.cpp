@@ -104,8 +104,8 @@ void NethackManager::launchNetHack() {
     if (nh_pid < 0) {
         write(
             2,
-            "the child has SMA and had to be put down by PETA\n",
-            sizeof("the child has SMA and had to be put down by PETA\n") - 1
+            "the child failed\n",
+            sizeof("the child failed\n") - 1
         );
         perror("forkpty failed");
         _exit(1);
@@ -125,14 +125,18 @@ void NethackManager::launchNetHack() {
 
 void NethackManager::resetGame() {
     if (nh_pid > 0) {
-        write(master_fd, "\x03", 1); // Ctrl+C
-        write(master_fd, "q", 1);
-        waitpid(nh_pid, nullptr, 0);
         kill(nh_pid, SIGKILL);
+        waitpid(nh_pid, nullptr, 0);
+        nh_pid = -1;
+    }
+    if (master_fd >= 0) {
+        close(master_fd);
+        master_fd = -1;
     }
 
     fill(screen_bits.begin(), screen_bits.end(), 0);
     launchNetHack();
+    turn_count = 0;
 }
 
 string NethackManager::readScreen() {
@@ -228,8 +232,8 @@ bool NethackManager::parseScreen(string screen) {
 
                 char ch = lines[rr][cc];
                 if (ch == '#')      { b0 = 1; b1 = 0; }
-                else if (ch == '.') { b0 = 0; b1 = 1; }
-                else if (ch == '@') { b0 = 1; b1 = 1; }
+                else if (ch == '|' || ch == '-') { b0 = 0; b1 = 1; }
+                else{ b0 = 1; b1 = 1; }
             }
 
             int w_r = dr + HALF;
@@ -244,7 +248,7 @@ bool NethackManager::parseScreen(string screen) {
 }
 
 double NethackManager::getScore() {
-    return turn_count; //i don't care the hyperoptimizer just uses these to sort and weigh
+    return log(turn_count); //i don't care the hyperoptimizer just uses these to sort and weigh
 }
 
 void NethackManager::sendAction() {
