@@ -16,10 +16,10 @@ struct NethackManager {
     void step();                    
     void sendAction(); 
     void initPTY();
-    bool parseScreen(string screen);
+    bool parseScreen();
     void resetGame();
     bool checkDeath();
-    string readScreen();
+    void readScreen();
     vector<int> input_nets;
     int output_net;
 
@@ -35,10 +35,8 @@ struct NethackManager {
 
     bool watch = true;
     int turn_count = 0;
+    string buffer;
 
-    // terminal emulation
-    struct VTerm* vt;
-    struct VTermScreen* vts;
 
     // cached binary state
     vector<uint8_t> screen_bits;

@@ -22,7 +22,7 @@ constexpr int BITS_PER_CELL = 2;
 constexpr int AVERAGE_TURNS = 200;
 constexpr double K = 50.0;
 
-const vector<char> actions = {'.',',','h','j','k','l','y','u','b','n','q','>','<'};
+const vector<char> actions = {'.',',','h','j','k','l','y','u','b','n','q','d','>','<'};
 constexpr int BITS_PER_ACTION = 4;
 
 static NethackManager* g_mgr = nullptr;
@@ -124,42 +124,42 @@ void NethackManager::launchNetHack() {
 }
 
 void NethackManager::resetGame() {
-    if (nh_pid > 0) {
-        kill(nh_pid, SIGKILL);
-        waitpid(nh_pid, nullptr, 0);
-        nh_pid = -1;
-    }
     if (master_fd >= 0) {
         close(master_fd);
         master_fd = -1;
     }
 
+    if (nh_pid > 0) {
+        int status;
+        while (waitpid(nh_pid, &status, 0) == -1 && errno == EINTR) {}
+        nh_pid = -1;
+    }
+
     fill(screen_bits.begin(), screen_bits.end(), 0);
-    launchNetHack();
     turn_count = 0;
+    buffer.clear();  
+    launchNetHack();
 }
 
-string NethackManager::readScreen() {
-    static string buffer;
+void NethackManager::readScreen() {
     char tmp[4096];
 
     ssize_t n;
     while ((n = read(master_fd, tmp, sizeof(tmp))) > 0) {
         buffer.append(tmp, n);
     }
-    return buffer;
 }
 
 void NethackManager::step() {
-    string buffer = readScreen();
-    bool player_found = parseScreen(buffer);
+    readScreen();
+    bool player_found = parseScreen();
 
     if (watch) {
         write(STDOUT_FILENO, buffer.data(), buffer.size());
         write(STDOUT_FILENO, "\n", 1);
     }
 
-    if(player_found)  turn_count++;
+    if(player_found) turn_count++;
 
     for (int i = 0; i < input_nets.size(); i++) {
         terminals[i]->updateValues(
@@ -172,36 +172,35 @@ void NethackManager::step() {
 }
 
 bool NethackManager::checkDeath() {
-    static string tail;
-    tail += readScreen();
-
-    if (tail.find("REST") != string::npos) {
+    if (buffer.find("REST") != string::npos
+        && buffer.find("PEACE") != string::npos) {
         return true;
     }
-
-    // keep bounded
-    if (tail.size() > ROWS*COLS)
-        tail.erase(0, tail.size() - ROWS*COLS);
-
     return false;
 }
 
-bool NethackManager::parseScreen(string screen) {
+bool NethackManager::parseScreen() {
     //fill(screen_bits.begin(), screen_bits.end(), 0); //if this happens then a parallel process might receive 0s when it shouldn't
 
     vector<string> lines;
     size_t pos = 0, next;
 
-    while ((next = screen.find('\n', pos)) != string::npos) {
-        lines.push_back(screen.substr(pos, next - pos));
+    while ((next = buffer.find('\n', pos)) != string::npos) {
+        lines.push_back(buffer.substr(pos, next - pos));
         pos = next + 1;
     }
 
-    if (pos < screen.size())
-        lines.push_back(screen.substr(pos));
+    if (pos < buffer.size())
+        lines.push_back(buffer.substr(pos));
 
-    if (!lines.empty() && !lines[0].empty()) {
+    if (!lines.empty() &&
+        std::find_if(lines[0].begin(), lines[0].end(),
+            [](unsigned char c){ return std::isprint(c) && !std::isspace(c); })
+        != lines[0].end())
+    {        
         write(master_fd, "\n", 1);
+        this_thread::sleep_for(20ms);
+
     }
 
     int player_r = -1;
@@ -248,7 +247,7 @@ bool NethackManager::parseScreen(string screen) {
 }
 
 double NethackManager::getScore() {
-    return log(turn_count); //i don't care the hyperoptimizer just uses these to sort and weigh
+    return (1.95 / M_PI) * std::atan(0.004 * (turn_count - 1000.0)) - 1.0;
 }
 
 void NethackManager::sendAction() {
@@ -262,12 +261,5 @@ void NethackManager::sendAction() {
     char action = actions[action_idx];
 
     write(master_fd, &action, 1);
-
-    if(watch){
-        string message = format("\n ACTION : {}", action);
-
-            write(STDOUT_FILENO, message.data(), message.size());
-
-    }
 }
 
