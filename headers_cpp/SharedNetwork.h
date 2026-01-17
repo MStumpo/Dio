@@ -14,8 +14,8 @@
 #include "HyperOptimizer.h"
 
 
-using NeuronPointer = std::unique_ptr<Neuron>;
-using EdgePointer = std::unique_ptr<Edge>;
+using NeuronPointer = std::shared_ptr<Neuron>;
+using EdgePointer = std::shared_ptr<Edge>;
 struct DatasetManager;
 struct NethackManager;
 struct Network;

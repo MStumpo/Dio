@@ -98,8 +98,7 @@ void SharedNetwork::mergeNeuronsFromMatrix(vector<vector<int>> matrix, bool over
         for(int i = 0; i < matrix[r][c]; i++){
             size_t idx_r = sub_networks[r]->hp.NEURON_SIZE-1 - buffer[r] - i;
             size_t idx_c = sub_networks[c]->hp.NEURON_SIZE-1 - buffer[c] -i;
-            mergeNeuron(sub_networks[r]->neurons[idx_r], 
-            sub_networks[c]->neurons[idx_c]);
+            mergeNeuron(sub_networks[r]->neurons[idx_r], sub_networks[c]->neurons[idx_c]);
         }
         if(!overlap){
             buffer[r] += matrix[r][c];

@@ -58,13 +58,7 @@ NethackManager::NethackManager(
              n++) {
 
             terminals.back()->coordinates.push_back(
-                shared_network
-                    ->sub_networks[input_nets[i]]
-                    ->neurons[
-                        shared_network
-                            ->sub_networks[input_nets[i]]
-                            ->hp.NEURON_SIZE - 1 - n
-                    ]
+                shared_network->sub_networks[input_nets[i]]->neurons[n]
             );
             terminals.back()->clamped = true;
         }
@@ -200,7 +194,10 @@ bool NethackManager::parseScreen() {
 
     buffer.erase(0, pos);
 
-    if(lines.empty() || lines[0].find("--More--") != string::npos) return false;
+    vector<string> neg_triggers = {"--More--", "."};
+    if(lines.empty()) return false;
+
+    for(string trigger : neg_triggers) if(lines[0].find(trigger) != string::npos) return false;
 
     int player_r = -1;
     int player_c = -1;
