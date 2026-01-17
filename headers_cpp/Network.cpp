@@ -123,10 +123,13 @@ void Network::AdjMatrix::updateAdj() {
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
-            //data[i][j]->value += parent.hp.lr * (parent.neurons[j]->value * data[i][j]->U * pow(E[j], parent.hp.entropy_factor) - parent.hp.reg * data[i][j]->value * pow(parent.neurons[i]->trace, 2));
 
-            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+            //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U + data[i][j]->sender->value*pow((1-data[i][j]->destination->trace),2) - parent.hp.reg*data[i][j]->value*C[i][j] );
+
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
+
 	        //printf("DEBUG %f \n", C[i][j]);
         }
     }
@@ -140,8 +143,8 @@ Network::Network(SharedNetwork* s, HyperParameters& hp_arg)
     for (size_t i = 0; i < hp_arg.NEURON_SIZE; i++) {
         NeuronPointer n = make_shared<Neuron>(false, 0.0, this);
         neurons.push_back(n);
-
         shared->neurons.push_back(n);
+
     }
 
     adj.initialize();

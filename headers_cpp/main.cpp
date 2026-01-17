@@ -50,18 +50,18 @@ int main(int argc, char *argv[]){
 	HyperParameters hp2;
 	HyperParameters hp3;
 	HyperParameters hp4;
-	hp1.NEURON_SIZE = 30;
-	hp2.NEURON_SIZE = 30;
-	hp3.NEURON_SIZE = 30;
-	hp4.NEURON_SIZE = 30;
+	hp1.NEURON_SIZE = 20;
+	hp2.NEURON_SIZE = 20;
+	hp3.NEURON_SIZE = 20;
+	hp4.NEURON_SIZE = 15;
 
 
 	vector<int> INPUT_INDEXES = {0,1,2};
 	int OUTPUT_INDEX = 3;
 
-	vector<vector<int>> MERGE_MATRIX = {{0, 10, 0, 5},
-										{0, 0, 10,  5},
-										{0, 0, 0,  10},
+	vector<vector<int>> MERGE_MATRIX = {{0, 5, 0, 5},
+										{0, 0, 5,  5},
+										{0, 0, 0,  5},
 										{0, 0, 0,   0}};
 
 	SharedNetwork shared_net;
@@ -76,6 +76,6 @@ int main(int argc, char *argv[]){
 
 	shared_net.createNethackManager(INPUT_INDEXES, OUTPUT_INDEX);
 
-	shared_net.runNethackOnline(300000, 69);
+	shared_net.runNethackOnline(300000, 2);
 	return 0;
 }

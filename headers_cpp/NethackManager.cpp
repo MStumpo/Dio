@@ -19,8 +19,8 @@ constexpr int N = 5;
 constexpr int HALF = N / 2;
 constexpr int BITS_PER_CELL = 2;
 
-constexpr int AVERAGE_TURNS = 200;
-constexpr double K = 50.0;
+constexpr int AVERAGE_TURNS = 300;
+constexpr double K = 0.0004;
 
 const vector<char> actions = {'.',',','h','j','k','l','y','u','b','n','q','d','>','<'};
 constexpr int BITS_PER_ACTION = 4;
@@ -151,15 +151,20 @@ void NethackManager::readScreen() {
 }
 
 void NethackManager::step() {
+
     readScreen();
-    bool player_found = parseScreen();
+    
+    
+    if(!parseScreen()){ 
+        write(master_fd, "\n", 1);
+    }
 
     if (watch) {
         write(STDOUT_FILENO, buffer.data(), buffer.size());
         write(STDOUT_FILENO, "\n", 1);
     }
 
-    if(player_found) turn_count++;
+    turn_count++;
 
     for (int i = 0; i < input_nets.size(); i++) {
         terminals[i]->updateValues(
@@ -193,15 +198,9 @@ bool NethackManager::parseScreen() {
     if (pos < buffer.size())
         lines.push_back(buffer.substr(pos));
 
-    if (!lines.empty() &&
-        std::find_if(lines[0].begin(), lines[0].end(),
-            [](unsigned char c){ return std::isprint(c) && !std::isspace(c); })
-        != lines[0].end())
-    {        
-        write(master_fd, "\n", 1);
-        this_thread::sleep_for(20ms);
+    buffer.erase(0, pos);
 
-    }
+    if(lines.empty() || lines[0].find("--More--") != string::npos) return false;
 
     int player_r = -1;
     int player_c = -1;
@@ -216,23 +215,23 @@ bool NethackManager::parseScreen() {
         }
     }
 
-    if (player_r == -1)
-        return false;
+    if(player_r == -1) return false;
 
     for (int dr = -HALF; dr <= HALF; dr++) {
         for (int dc = -HALF; dc <= HALF; dc++) {
             int rr = player_r + dr;
             int cc = player_c + dc;
 
-            uint8_t b0 = 0, b1 = 0;
+            uint8_t b0 = 0, b1 = 0; //DEFAULT 00 for any characters
+            //TODO do this for multiple bits per cell
 
             if (rr >= 0 && rr < lines.size() &&
                 cc >= 0 && cc < lines[rr].size()) {
 
                 char ch = lines[rr][cc];
-                if (ch == '#')      { b0 = 1; b1 = 0; }
+                if (ch == '#' || ch == '$')      { b0 = 1; b1 = 0; }
                 else if (ch == '|' || ch == '-') { b0 = 0; b1 = 1; }
-                else{ b0 = 1; b1 = 1; }
+                else if (ch != '.'){ b0 = 1; b1 = 1; }
             }
 
             int w_r = dr + HALF;
@@ -247,7 +246,7 @@ bool NethackManager::parseScreen() {
 }
 
 double NethackManager::getScore() {
-    return (1.95 / M_PI) * std::atan(0.004 * (turn_count - 1000.0)) - 1.0;
+    return (1.95 / M_PI) * std::atan(K * (turn_count -AVERAGE_TURNS)) - 1.0;
 }
 
 void NethackManager::sendAction() {

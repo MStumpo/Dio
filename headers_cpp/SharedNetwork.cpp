@@ -118,13 +118,14 @@ void SharedNetwork::makeSubNetwork(HyperParameters& hp){
 void SharedNetwork::updateTrace() {
 
     for (auto& n : neurons) {
-        float dec = n->value ? (1 - exp(-n->members[0]->hp.decay)) : n->members[0]->hp.decay;
-        float upd = n->value ? n->members[0]->hp.decay : (1 - exp(-n->members[0]->hp.decay)) ;
-        n->trace = n->trace * dec + upd * n->value;
+        //n->trace = n->trace * n->members[0]->hp.decay + (1 - exp(-n->members[0]->hp.decay)) * n->value;
+        n->trace = n->trace * n->members[0]->hp.decay + (1 - n->value) * n->value;
     } 
     for (auto& e : edges) {
-        e->U = e->U * (1 - exp(-e->sender->members[0]->hp.u_decay)) +
-               e->sender->members[0]->hp.u_decay * e->sender->trace * 2 * (e->destination->value - 0.5);
+        //e->U = e->U * e->sender->members[0]->hp.u_decay +
+        //       (1 - exp(-e->sender->members[0]->hp.u_decay)) * e->sender->trace * 2 * (e->destination->value - 0.5);
+        e->U = e->U * e->sender->members[0]->hp.u_decay +
+               (1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
     }
 }
 void SharedNetwork::resetRandom(){
@@ -238,7 +239,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
     nh->launchNetHack();
     int game = 0;
     string message;
-
+    double score = -1.0;
     if(verb == 0) nh->watch = false;
 
     while (game <= n_games) {
@@ -251,20 +252,29 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         
         nh->sendAction();
 
-        string message = "";
-        if(verb >= 2){
+        message = "";
+        if(verb >= 1){
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
             message.append(format("\n GAME : {}", game));
-
+            message.append(format("\n LAST SCORE: {}", score));
         }
-        write(STDOUT_FILENO, message.data(), message.size());
+        if(verb >= 2){
+            message.append("\n HPS (lr, reg, entropy_factor, decay, u_decay, det, firing_value, c_factor):\n");
+            for(auto& net : sub_networks){
+                    for(int p = 0; p < net->hp.size(); p++) message.append(format("{:.3},", net->hp[p]));
+                    message.append(" || ");
+            }   
+        }
+        if(verb >= 3){
+            message.append(" ADJ MATRICES: \n");
+            for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
+        }
+
+        if(verb > 0) write(STDOUT_FILENO, message.data(), message.size());
         this_thread::sleep_for(10ms); 
         if (nh->checkDeath()) {
-            string message2 = "\n DEATH DETECTED !!!!";
-            write(STDOUT_FILENO, message2.data(), message2.size());
-
-            double score = nh->getScore();
+                score = nh->getScore();
 
             for (auto& target : sub_networks)
             {

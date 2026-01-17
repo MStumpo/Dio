@@ -7,6 +7,7 @@
 
 struct HyperParameters {
     size_t NEURON_SIZE = 10;
+
     double lr = 0.1;
     double reg = 0.1;
     double entropy_factor = 1.0;
@@ -18,7 +19,7 @@ struct HyperParameters {
 
     std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false, false};
     std::vector<std::pair<double,double>> limits = {
-        {1e-5,0.5},{1e-2,1.0},{-2.0,2.0},{0.001,1.0},{0.001,1.0},{0.0,1.0},{-3.0,3.0}, {0.0,1.0}
+        {1e-3,1.0},{1e-2,1.0},{-2.0,2.0},{0.0001,1.0},{0.0001,1.0},{0.0,1.0},{-3.0,3.0}, {0.0,1.0}
     };
 
 
