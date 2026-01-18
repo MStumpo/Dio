@@ -44,16 +44,20 @@ int main(int argc, char *argv[]){
 
 	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
 	*/
+
 	
 		//Nethack screen bits is 5x5x2 = 50
 	HyperParameters hp1;
 	HyperParameters hp2;
 	HyperParameters hp3;
 	HyperParameters hp4;
-	hp1.NEURON_SIZE = 30;
-	hp2.NEURON_SIZE = 30;
-	hp3.NEURON_SIZE = 30;
+	HyperParameters hp5;
+
+	hp1.NEURON_SIZE = 50;
+	hp2.NEURON_SIZE = 50;
+	hp3.NEURON_SIZE = 50;
 	hp4.NEURON_SIZE = 30;
+	hp5.NEURON_SIZE = 50;
 
 
 	vector<int> INPUT_INDEXES = {0,1,2};
@@ -67,12 +71,14 @@ int main(int argc, char *argv[]){
 
 	shared_net.makeSubNetwork(hp3);
 	shared_net.makeSubNetwork(hp4);
+	shared_net.makeSubNetwork(hp5);
 
 
-	vector<vector<int>> MERGE_MATRIX = {{0, 5, 0, 5},
-										{0, 0, 5,  5},
-										{0, 0, 0,  5},
-										{0, 0, 0,   0}};
+	vector<vector<int>> MERGE_MATRIX = {{0, 5, 0, 5, 5},
+										{0, 0, 5, 5, 5},
+										{0, 0, 0, 5, 5},
+										{0, 0, 0, 0, 5},
+										{0, 0, 0, 0, 0}};
 
 	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
 

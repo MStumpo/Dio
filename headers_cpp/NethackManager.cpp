@@ -146,13 +146,16 @@ void NethackManager::readScreen() {
 
 void NethackManager::step() {
 
+    buffer.clear();
     readScreen();
     
     
     if(!parseScreen()){ 
         write(master_fd, "\n", 1);
+        this_thread::sleep_for(20ms);
+        write(master_fd, ".", 1);
     }
-
+    
     if (watch) {
         write(STDOUT_FILENO, buffer.data(), buffer.size());
         write(STDOUT_FILENO, "\n", 1);

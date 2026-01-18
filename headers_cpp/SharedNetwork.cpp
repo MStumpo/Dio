@@ -7,6 +7,7 @@
 #include <string>
 #include <format>
 #include <thread>
+#include <cstring>
 using namespace std;
 
 
@@ -117,14 +118,14 @@ void SharedNetwork::makeSubNetwork(HyperParameters& hp){
 void SharedNetwork::updateTrace() {
 
     for (auto& n : neurons) {
-        //n->trace = n->trace * n->members[0]->hp.decay + (1 - exp(-n->members[0]->hp.decay)) * n->value;
-        n->trace = n->trace * n->members[0]->hp.decay + (1 - n->value) * n->value;
+        n->trace = n->trace * n->members[0]->hp.decay + (1 - exp(-n->members[0]->hp.decay)) * n->value;
+        //n->trace = n->trace * n->members[0]->hp.decay + n->value*(1-n->trace)*(1-n->members[0]->hp.decay);
     } 
     for (auto& e : edges) {
-        //e->U = e->U * e->sender->members[0]->hp.u_decay +
-        //       (1 - exp(-e->sender->members[0]->hp.u_decay)) * e->sender->trace * 2 * (e->destination->value - 0.5);
         e->U = e->U * e->sender->members[0]->hp.u_decay +
-               (1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
+               (1 - exp(-e->sender->members[0]->hp.u_decay)) * e->sender->trace * 2 * (e->destination->value - 0.5);
+        //e->U = e->U * e->sender->members[0]->hp.u_decay +
+        //       (1- e->sender->members[0]->hp.u_decay)*(1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
     }
 }
 void SharedNetwork::resetRandom(){
@@ -242,6 +243,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
     if(verb == 0) nh->watch = false;
 
     while (game <= n_games) {
+
         nh->step();     
 
         neuronFiring();
@@ -259,7 +261,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             message.append(format("\n LAST SCORE: {}", score));
         }
         if(verb >= 2){
-            message.append("\n HPS (lr, reg, entropy_factor, decay, u_decay, det, firing_value, c_factor):\n");
+            message.append("\n HPS (lr, reg, entropy_factor, decay, u_decay, det, firing_value, c_factor, alpha):\n");
             for(auto& net : sub_networks){
                     for(int p = 0; p < net->hp.size(); p++) message.append(format("{:.3},", net->hp[p]));
                     message.append(" || ");
@@ -270,7 +272,11 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
         }
 
-        if(verb > 0) write(STDOUT_FILENO, message.data(), message.size());
+        if(verb > 0){ 
+            const char* home = "\033[H \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; //I'm more of a backend sort of guy let's just say that 
+            write(STDOUT_FILENO, home, strlen(home));
+            write(STDOUT_FILENO, message.data(), message.size());
+        }
         this_thread::sleep_for(10ms); 
         if (nh->checkDeath()) {
                 score = nh->getScore();
@@ -279,6 +285,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             {
                 target->opt.update(target->hp, score);
                 target->hp = target->opt.propose();
+                for(auto& neuron : target->neurons) neuron->value = false;
             }
             game++;
             nh->resetGame();
