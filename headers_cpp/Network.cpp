@@ -51,8 +51,8 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
         vector<double> counts(n_bins,0);
         double sum = 0.0;
         for (size_t row = 0; row < n; row++) {
-            double Mij = parent.hp.contrib_factor*data[row][col]->value;
-            A[row][col] = (row == col ? 1.0 : 0.0) - Mij;
+            double Mij = data[row][col]->value;
+            A[row][col] = (row == col ? 1.0 : 0.0) - parent.hp.contrib_factor*Mij;
             int idx = floor((Mij + 1 )*n_bins/range);
             if(idx == n_bins) idx = n_bins -1;
             counts[idx]++;
@@ -126,9 +126,11 @@ void Network::AdjMatrix::updateAdj() {
 
             //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
 
-            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U
-            + parent.hp.alpha*data[i][j]->sender->value*data[i][j]->sender->trace*(1-data[i][j]->destination->trace)
-            - parent.hp.reg*data[i][j]->value*C[i][j]*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value) );
+            data[i][j]->value += parent.hp.lr*(
+                data[i][j]->U*(data[i][j]->destination->value + data[i][j]->sender->value*(1- data[i][j]->destination->trace))
+                /(C[i][j] + parent.hp.alpha)
+
+            - parent.hp.reg*data[i][j]->value*(pow(data[i][j]->sender->trace,2) + pow(E[j], parent.hp.entropy_factor)));
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
 

@@ -19,10 +19,9 @@ constexpr int N = 5;
 constexpr int HALF = N / 2;
 constexpr int BITS_PER_CELL = 2;
 
-constexpr int AVERAGE_TURNS = 300;
-constexpr double K = 0.0004;
+constexpr double K = 10;
 
-const vector<char> actions = {'.',',','h','j','k','l','y','u','b','n','q','d','>','<'};
+const vector<char> actions = {'.',',','h','j','k','n','l','y','u','b','q','d','>','<'};
 constexpr int BITS_PER_ACTION = 4;
 
 static NethackManager* g_mgr = nullptr;
@@ -151,13 +150,14 @@ void NethackManager::step() {
     
     
     if(!parseScreen()){ 
-        write(master_fd, "\n", 1);
-        this_thread::sleep_for(20ms);
+        write(master_fd, " ", 1);
         write(master_fd, ".", 1);
+
+        this_thread::sleep_for(20ms);
     }
     
     if (watch) {
-        write(STDOUT_FILENO, buffer.data(), buffer.size());
+        write(STDOUT_FILENO, buffer.c_str(), buffer.size());
         write(STDOUT_FILENO, "\n", 1);
     }
 
@@ -246,7 +246,12 @@ bool NethackManager::parseScreen() {
 }
 
 double NethackManager::getScore() {
-    return (1.95 / M_PI) * std::atan(K * (turn_count -AVERAGE_TURNS)) - 1.0;
+    regex r(R"((\d+)\s*Au)");
+    smatch m;
+    regex_search(buffer, m, r);
+    double score = stod(m[1]);
+
+    return 2*score/(score + K) - 1;
 }
 
 void NethackManager::sendAction() {
