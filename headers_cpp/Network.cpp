@@ -62,8 +62,9 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
             double p = double(count)/n;
             if(p > 0) entropy[col] -= p*log2(p);
         }
-        entropy[col] = (entropy[col]/log2(n_bins)) + sum/n;
     }
+
+    for(double& e : entropy) e =/log(n_bins);
 
     // Gauss–Jordan
     for (int col = 0; col < n; col++) {
@@ -130,7 +131,7 @@ void Network::AdjMatrix::updateAdj() {
                 data[i][j]->U*(data[i][j]->destination->value + data[i][j]->sender->value*(1- data[i][j]->destination->trace))
                 /(abs(C[i][j]) + parent.hp.alpha)
 
-            - parent.hp.reg*data[i][j]->value*(data[i][j]->sender->trace + pow(E[j], parent.hp.entropy_factor)));
+            - parent.hp.reg*data[i][j]->value*(data[i][j]->destination->trace + pow(E[j], parent.hp.entropy_factor)));
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
 

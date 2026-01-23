@@ -18,9 +18,9 @@ struct HyperParameters {
     double contrib_factor = 1.0;
     double alpha = 0.5; //yes I am a double alpha
 
-    std::vector<uint8_t> log_scale = {true, true, false, false, false, false, false, false, false};
+    std::vector<uint8_t> log_scale = {true, false, false, false, false, false, false, false, false};
     std::vector<std::pair<double,double>> limits = {
-        {1e-7,1.0},{0.015,2.0},{-2.0,2.0},{0.0,1.0},{0.0,1.0},{0.0,1.0},{-3.0,3.0}, {0.0,1.0}, {0.0, 10.0}
+        {1e-7,1.0},{0.0,2.0},{-2.0,2.0},{0.0,1.0},{0.0,1.0},{0.0,1.0},{-3.0,3.0}, {0.0,1.0}, {0.0, 10.0}
     };
 
 

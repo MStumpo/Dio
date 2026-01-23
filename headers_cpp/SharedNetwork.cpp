@@ -284,7 +284,6 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             {
                 target->opt.update(target->hp, score);
                 target->hp = target->opt.propose();
-                for(auto& neuron : target->neurons) neuron->value = false;
             }
             game++;
             nh->resetGame();
