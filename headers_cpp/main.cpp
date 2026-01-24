@@ -14,8 +14,8 @@
 //Convention: merge neurons at the end of the vector (neurons[size -i]) and apply terminals to the beggining (neurons[i]), so you're less likely to have merged neurons in terminals (which wouldn't break everything but the terminal would still only refer to the predesignated network)
 using namespace std;
 int main(int argc, char *argv[]){
-
-	/* //UNcomment this but comment the rest if you want to see dataset action
+	/*
+	//UNcomment this but comment the rest if you want to see dataset action
 	int TRAIN_WINDOW = 15;
 	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
@@ -43,7 +43,6 @@ int main(int argc, char *argv[]){
 
 	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
 	*/
-
 		//Nethack screen bits is 5x5x2 = 50
 	HyperParameters hp1;
 	HyperParameters hp2;

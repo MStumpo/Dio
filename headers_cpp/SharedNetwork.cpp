@@ -119,13 +119,13 @@ void SharedNetwork::updateTrace() {
 
     for (auto& n : neurons) {
         //n->trace = n->trace * n->members[0]->hp.decay + (1 - exp(-n->members[0]->hp.decay)) * n->value;
-        n->trace = n->trace * n->members[0]->hp.decay + n->value*(1-n->trace)*(1-n->members[0]->hp.decay);
+        n->trace = n->trace * (1-n->members[0]->hp.decay) + n->value*(1-n->trace)*n->members[0]->hp.decay;
     } 
     for (auto& e : edges) {
         //e->U = e->U * e->sender->members[0]->hp.u_decay +
         //       (1 - exp(-e->sender->members[0]->hp.u_decay)) * e->sender->trace * 2 * (e->destination->value - 0.5);
-        e->U = e->U * e->sender->members[0]->hp.u_decay +
-               (1- e->sender->members[0]->hp.u_decay)*(1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
+        e->U = e->U * (1-e->sender->members[0]->hp.u_decay) +
+               e->sender->members[0]->hp.u_decay*(1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
     }
 }
 void SharedNetwork::resetRandom(){

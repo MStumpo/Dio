@@ -21,7 +21,7 @@ constexpr int BITS_PER_CELL = 2;
 
 constexpr double K = 10000;
 
-const vector<char> actions = {'.',',','h','j','k','n','l','y','u','b','q','d','>','<'};
+const vector<char> actions = {'.',',','h','f','j','k','n','l','y','u','b','q','d','>','<'};
 constexpr int BITS_PER_ACTION = 4;
 
 static NethackManager* g_mgr = nullptr;

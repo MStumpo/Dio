@@ -31,7 +31,7 @@ vector<double> Network::AdjMatrix::colEntropy(){ // + col average
     		double p = double(count)/N;
     		if(p > 0) entropy[col] -= p*log2(p);
     	}
-    	entropy[col] = (entropy[col]/log2(n_bins)) + sum/N;
+        entropy[col] /= log2(n_bins);
     }
     return entropy;
 }
@@ -51,7 +51,7 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
         vector<double> counts(n_bins,0);
         double sum = 0.0;
         for (size_t row = 0; row < n; row++) {
-            double Mij = data[row][col]->value;
+            double Mij = round(data[row][col]->value*100)/100;
             A[row][col] = (row == col ? 1.0 : 0.0) - parent.hp.contrib_factor*Mij;
             int idx = floor((Mij + 1 )*n_bins/range);
             if(idx == n_bins) idx = n_bins -1;
@@ -64,7 +64,7 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
         }
     }
 
-    for(double& e : entropy) e =/log(n_bins);
+    for(double& e : entropy) e /= log2(n_bins);
 
     // Gauss–Jordan
     for (int col = 0; col < n; col++) {
@@ -83,9 +83,9 @@ pair<vector<vector<double>>,vector<double>> Network::AdjMatrix::entropyAndContri
 
         for (int r = 0; r < n; r++) {
             if (r == col){
-		I[r][col] -= 1;
-	    	continue;
-	    }
+    		    I[r][col] -= 1;
+    	    	continue;
+    	    }
             double f = A[r][col];
             for (int j = 0; j < n; j++) {
                 A[r][j] -= f * A[col][j];
@@ -117,25 +117,26 @@ void Network::AdjMatrix::initialize() {
 
 void Network::AdjMatrix::updateAdj() {
     size_t N = data.size();
+
     auto A = entropyAndContribution();
     vector<vector<double>> C = A.first;
     vector<double> E = A.second;
+    //vector<double> E = colEntropy();
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
 
-            //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->sender->trace,2) + data[i][j]->destination->value));
+            //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->destination->trace,2) + data[i][j]->sender->value));
 
-            data[i][j]->value += parent.hp.lr*(
-                data[i][j]->U*(data[i][j]->destination->value + data[i][j]->sender->value*(1- data[i][j]->destination->trace))
-                /(abs(C[i][j]) + parent.hp.alpha)
 
-            - parent.hp.reg*data[i][j]->value*(data[i][j]->destination->trace + pow(E[j], parent.hp.entropy_factor)));
+            data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value*data[i][j]->U/C[i][j] - 
+                parent.hp.reg*(data[i][j]->destination->trace + pow(E[j], parent.hp.entropy_factor)));
+
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
 
-	        //printf("DEBUG %f \n", C[i][j]);
+	        //printf("DEBUG %f \n", E[j]);
         }
     }
 }
