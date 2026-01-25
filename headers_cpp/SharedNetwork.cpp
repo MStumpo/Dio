@@ -125,7 +125,7 @@ void SharedNetwork::updateTrace() {
         //e->U = e->U * e->sender->members[0]->hp.u_decay +
         //       (1 - exp(-e->sender->members[0]->hp.u_decay)) * e->sender->trace * 2 * (e->destination->value - 0.5);
         e->U = e->U * (1-e->sender->members[0]->hp.u_decay) +
-               e->sender->members[0]->hp.u_decay*(1 - e->U) * e->sender->trace * 2 * (e->destination->value - 0.5);
+               e->sender->members[0]->hp.u_decay*(1 - abs(e->U)) * e->sender->trace * 2 * (e->destination->value - 0.5);
     }
 }
 void SharedNetwork::resetRandom(){
