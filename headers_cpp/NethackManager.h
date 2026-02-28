@@ -16,7 +16,7 @@ struct NethackManager {
     void step();                    
     void sendAction(); 
     void initPTY();
-    bool parseScreen();
+    void parseScreen();
     void resetGame();
     bool checkDeath();
     void readScreen();
@@ -37,7 +37,7 @@ struct NethackManager {
     int turn_count = 0;
     string buffer;
 
-
     // cached binary state
+    vector<char> vision_order = {'#', '$', '|', '-', '.'};
     vector<uint8_t> screen_bits;
 };

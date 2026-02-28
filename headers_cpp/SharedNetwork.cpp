@@ -244,6 +244,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
 
     while (game <= n_games) {
         nh->step();     
+        this_thread::sleep_for(50ms);
 
         neuronFiring();
         clampData(true);
@@ -251,8 +252,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         for(auto& net : sub_networks) net->adj.updateAdj();
         
         nh->sendAction();
-
-        message = "";
+        message = nh->buffer;
         if(verb >= 1){
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
@@ -272,11 +272,10 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         }
 
         if(verb > 0){ 
-            const char* home = "\033[H \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"; //I'm more of a backend sort of guy let's just say that 
-            write(STDOUT_FILENO, home, strlen(home));
-            write(STDOUT_FILENO, message.data(), message.size());
+            write(STDOUT_FILENO, "\x1B[2J\x1B[H", 6);  // Clear screen and reset cursor
+            write(STDOUT_FILENO, message.c_str(), message.length());
         }
-        this_thread::sleep_for(10ms); 
+
         if (nh->checkDeath()) {
                 score = nh->getScore();
 

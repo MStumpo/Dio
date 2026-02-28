@@ -131,8 +131,8 @@ void Network::AdjMatrix::updateAdj() {
 
 
             data[i][j]->value += parent.hp.lr*(
-                data[i][j]->U*(data[i][j]->destination->value*data[i][j]->sender->trace - data[i][j]->sender->value*data[i][j]->destination->trace)*C[i][j]/(C[i][j] + parent.hp.alpha)
-                - parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*pow(E[j], parent.hp.entropy_factor));
+                data[i][j]->U*(data[i][j]->destination->value*data[i][j]->sender->trace - data[i][j]->sender->value*data[i][j]->destination->trace)/pow(E[j], parent.hp.entropy_factor)
+                - parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*abs(C[i][j])/N);
 
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
