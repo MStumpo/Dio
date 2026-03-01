@@ -18,6 +18,7 @@ constexpr int COLS = 80;
 //constexpr int N = 20; //These represent the whole vision now so if you want a grid or square better make it a perf square or at least not a prime
 constexpr int N = 23; //you know what fuck you
 constexpr int BITS_PER_CELL = 2;
+constexpr int TIMEOUTMAX = 20;
 
 constexpr double K = 10000;
 
@@ -136,13 +137,13 @@ void NethackManager::resetGame() {
 
     fill(screen_bits.begin(), screen_bits.end(), 0);
     turn_count = 0;
+    timeout = 0;
     buffer.clear();  
     launchNetHack();
 }
 
 void NethackManager::readScreen() {
-    char tmp[4096];
-    buffer.clear();
+    char tmp[4096*2];
     ssize_t n;
     while ((n = read(master_fd, tmp, sizeof(tmp))) > 0) {
         buffer.append(tmp, n);
@@ -161,7 +162,9 @@ void NethackManager::step() {
         write(master_fd, " ", 1);
         write(master_fd, ".", 1);
         write(master_fd, "\n", 1);
-    }else {
+        timeout++;
+    }else{
+        timeout = 0;
         turn_count++;
         for (int i = 0; i < input_nets.size(); i++) {
             terminals[i]->updateValues(
@@ -175,8 +178,8 @@ void NethackManager::step() {
 }
 
 bool NethackManager::checkDeath() {
-    if (buffer.find("REST") != string::npos
-        && buffer.find("PEACE") != string::npos) {
+    if ((buffer.find("REST") != string::npos
+        && buffer.find("PEACE") != string::npos) || timeout >= TIMEOUTMAX) {
         return true;
     }
     return false;
@@ -208,7 +211,7 @@ double NethackManager::getScore() {
     regex r(R"((\d+)\s*Au)");
     smatch m;
     regex_search(buffer, m, r);
-    double score = stod(m[1]);
+    double score = (m.size() >= 1) ? stod(m[1]) : -1;
 
     return (score + 1)/(score + K/turn_count) ;
 }

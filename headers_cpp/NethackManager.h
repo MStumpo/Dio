@@ -35,9 +35,9 @@ struct NethackManager {
 
     bool watch = true;
     int turn_count = 0;
+    int timeout = 0;
     string buffer;
 
     // cached binary state
-    vector<char> vision_order = {'#', '$', '|', '-', '.'};
     vector<uint8_t> screen_bits;
 };

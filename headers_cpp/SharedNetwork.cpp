@@ -246,6 +246,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         nh->step();     
         this_thread::sleep_for(50ms);
 
+
         neuronFiring();
         clampData(true);
         updateTrace();
@@ -253,6 +254,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         
         nh->sendAction();
         message = nh->buffer;
+        nh->buffer.clear();
         if(verb >= 1){
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
