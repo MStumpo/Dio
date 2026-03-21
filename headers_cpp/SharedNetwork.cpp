@@ -12,7 +12,7 @@ using namespace std;
 
 
 #include "Network.h"
-
+#include "DataManager.h"
 
 using NeuronPointer = std::shared_ptr<Neuron>;
 using EdgePointer = std::shared_ptr<Edge>;
@@ -50,14 +50,8 @@ EdgePointer SharedNetwork::makeEdge(const NeuronPointer& s, const NeuronPointer&
     return p;
 }
 
-
-void SharedNetwork::createDatasetManager(string path) {
-    data_manager = std::move(std::make_unique<DatasetManager>(this, path));
-};
-
-void SharedNetwork::createNethackManager(vector<int> input_indexes, int output_index){
-    nh = std::move(std::make_unique<NethackManager>(this, input_indexes, output_index));
-}
+SharedNetwork::SharedNetwork() : data_manager(make_unique<DataManager>(this)){};
+SharedNetwork::~SharedNetwork() = default;
 
 // ---------------- Merge neurons ---------------- IN THIS CASE edges aren't removed from AdjMatrix because I still want both networks to be able to modify the merged neuron
 void SharedNetwork::mergeNeuron(NeuronPointer& dominant, NeuronPointer& recessive) {
@@ -157,21 +151,10 @@ void SharedNetwork::neuronFiring() {
 }
 
 void SharedNetwork::clampData(bool is_nh = false){
-    if(!is_nh){
     for(unique_ptr<DataTerminal>& terminal : data_manager->terminals){
         if(terminal->clamped){
             for(int i = 0; i < terminal->coordinates.size(); i++){
                 terminal->coordinates[i]->value = terminal->values[i];
-            }
-        }
-    }
-    }else{ //Let's call this a todo
-        for(unique_ptr<DataTerminal>& terminal : nh->terminals){
-            if(terminal->clamped){
-                for(int i = 0; i < terminal->coordinates.size(); i++){
-
-                    terminal->coordinates[i]->value = terminal->values[i];
-                }
             }
         }
     }
@@ -232,18 +215,19 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
             current_scores = vector<double>(data_manager->score_calculators.size(), 0.0);
             //resetRandom();
         }
-        data_manager->updateCurrentValues();
+        get<DataManager::Dataset>(data_manager->data_source).updateCurrentValues(data_manager.get());
     }
 }
 void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
-    nh->launchNetHack();
+    DataManager::NethackManager& nh = get<DataManager::NethackManager>(data_manager->data_source);
+    nh.launchNetHack();
     int game = 0;
     string message;
     double score = -1.0;
-    if(verb == 0) nh->watch = false;
+    if(verb == 0) nh.watch = false;
 
     while (game <= n_games) {
-        nh->step();     
+        nh.step(data_manager.get());     
         this_thread::sleep_for(50ms);
 
 
@@ -252,9 +236,9 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         updateTrace();
         for(auto& net : sub_networks) net->adj.updateAdj();
         
-        nh->sendAction();
-        message = nh->buffer;
-        nh->buffer.clear();
+        nh.sendAction(data_manager.get());
+        message = nh.buffer;
+        nh.buffer.clear();
         if(verb >= 1){
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
@@ -278,8 +262,8 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             write(STDOUT_FILENO, message.c_str(), message.length());
         }
 
-        if (nh->checkDeath()) {
-                score = nh->getScore();
+        if (nh.checkDeath()) {
+                score = nh.getScore();
 
             for (auto& target : sub_networks)
             {
@@ -287,7 +271,7 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
                 target->hp = target->opt.propose();
             }
             game++;
-            nh->resetGame();
+            nh.resetGame();
             this_thread::sleep_for(20ms);
         }
     }

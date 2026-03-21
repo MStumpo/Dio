@@ -5,8 +5,8 @@
 #include <thread>
 #include <string>
 #include "SharedNetwork.h"
+#include "DataManager.h"
 #include "HyperParameters.h"
-#include "DatasetManager.h"
 
 
 
@@ -14,8 +14,8 @@
 //Convention: merge neurons at the end of the vector (neurons[size -i]) and apply terminals to the beggining (neurons[i]), so you're less likely to have merged neurons in terminals (which wouldn't break everything but the terminal would still only refer to the predesignated network)
 using namespace std;
 int main(int argc, char *argv[]){
-	
-	/*//UNcomment this but comment the rest if you want to see dataset action
+	/*
+	//UNcomment this but comment the rest if you want to see dataset action
 	int TRAIN_WINDOW = 15;
 	int TEST_WINDOW = 15;
 	int NULL_WINDOW = 3;
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]){
 	shared_net.makeSubNetwork(hp1);
 	shared_net.makeSubNetwork(hp2);
 
-	shared_net.createDatasetManager(PATH);
+	shared_net.data_manager->makeDatasetManager(PATH);
 	shared_net.data_manager->createScoreRule({1},{1.0},{0,1}); // createScoreRule(vector<int> TERMINAL ----> ids, vector<double> weights, vector<int> eval_ids
 	shared_net.data_manager->terminals[0]->calibration = true;
 
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]){
 
 	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
 
-	shared_net.createNethackManager(INPUT_INDEXES, OUTPUT_INDEX);
+	shared_net.data_manager->makeNethackManager(INPUT_INDEXES, OUTPUT_INDEX);
 
 	shared_net.runNethackOnline(300000, 2);
 	
