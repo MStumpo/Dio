@@ -145,12 +145,14 @@ void SharedNetwork::neuronFiring() {
     }
 
     for (auto& neuron : neurons) {
-        neuron->value = (neuron->buf >= neuron->members[0]->hp.firing_value) ? 1 : 0; //maybe firing val is sum of firing vals from both networks?
+        double firval = 0;
+        for(auto& net : neuron->members) firval += net->hp.firing_value;
+        neuron->value = (neuron->buf >= firval) ? 1 : 0; //maybe firing val is sum of firing vals from both networks?
         neuron->buf = 0.0;
     }
 }
 
-void SharedNetwork::clampData(bool is_nh = false){
+void SharedNetwork::clampData(){
     for(unique_ptr<DataTerminal>& terminal : data_manager->terminals){
         if(terminal->clamped){
             for(int i = 0; i < terminal->coordinates.size(); i++){
@@ -192,7 +194,7 @@ void SharedNetwork::runDataset(int iterations, int train_window, int test_window
             if(t == train_window + null_window)  for(unique_ptr<DataTerminal>& terminal: data_manager->terminals) terminal->clamped = terminal->calibration; 
 
         	neuronFiring();
-            clampData(false);
+            clampData();
 
         	updateTrace();
         	if(t < train_window) for(auto& net : sub_networks) net->adj.updateAdj();
@@ -230,9 +232,8 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
         nh.step(data_manager.get());     
         this_thread::sleep_for(50ms);
 
-
         neuronFiring();
-        clampData(true);
+        clampData();
         updateTrace();
         for(auto& net : sub_networks) net->adj.updateAdj();
         
@@ -273,6 +274,57 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
             game++;
             nh.resetGame();
             this_thread::sleep_for(20ms);
+        }
+    }
+}
+
+
+void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimize, int verb){
+
+    for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) if(terminal->calibration) terminal->clamped = true; //in the context of playground calibration terminals are always clamped no matter what so the network has some stable signals
+    for(size_t i = 0; i < iterations; i++){
+        get<DataManager::Playground>(data_manager->data_source).reset(data_manager.get());
+        double av_reward = 0;
+        for(size_t t = 0; t < window; t++){
+            clampData();
+            neuronFiring();
+            get<DataManager::Playground>(data_manager->data_source).applySwitches(data_manager.get());
+            updateTrace();
+            if(!optimize){
+                for(auto& net : sub_networks) net->adj.updateAdj();
+            }else{
+                double rere = get<DataManager::Playground>(data_manager->data_source).reward();
+                for(auto& net : sub_networks) net->adj.updateAdj(rere);
+                av_reward += rere;
+            }
+            string message = "";
+            if(verb > 0){
+                message = "\nSWITCHES: ";
+                for(DataManager::Playground::Switch s : get<DataManager::Playground>(data_manager->data_source).switches) message.append(format(" reward {}, flipped {} \n", s.reward , s.flipped ? "ON" : "OFF"));
+            }
+            if(verb >= 4){
+                message.append(" HyperParameters (lr, reg, entropy_factor, decay, u_decay, det, firing_value, c_factor): \n");
+                for(auto& net : sub_networks){
+                    for(int p = 0; p < net->hp.size(); p++) message.append(format(" {:.3},", net->hp[p]));
+                    message.append("\n");
+                }
+            }
+            if(verb >= 3){
+                message.append(" ADJ MATRICES: \n");
+                for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
+            }if(verb >= 2){
+            message.append("\n NETS: ");
+            for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+            }
+            progress_bar(i*window + t, iterations+window, message);
+        }
+        if(optimize){
+            av_reward /= window;
+            for (auto& target : sub_networks)
+            {
+                target->opt.update(target->hp, 1.0 - pow(1 - av_reward, 10.0));
+                target->hp = target->opt.propose();
+            }
         }
     }
 }

@@ -47,7 +47,7 @@ class Network {
         std::vector<std::vector<EdgePointer>> data;
         AdjMatrix(Network& parent_network);
         void initialize();
-        void updateAdj();
+        void updateAdj(double reward= NAN);
         const std::vector<std::vector<EdgePointer>>& getData() const { return data; }
     };
 

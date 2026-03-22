@@ -296,9 +296,54 @@ void DataManager::NethackManager::sendAction(DataManager* manager) {
     write(master_fd, &action, 1);
 }
 
+double DataManager::Playground::reward(){
+    double final_reward = 0;
+    for(Switch s : switches) if(s.flipped) final_reward += s.reward;
+
+    return min(max(final_reward, 1.0),-1.0);
+}
+
+void DataManager::Playground::applySwitches(DataManager* manager){
+    for(Switch s : switches){
+        if((!s.slip && s.flipped)) continue;
+        bool activated = true;
+        for(vector<uint8_t> vals : s.triggers){
+            activated = true;
+            for(int b = 0; b < manager->terminals[s.transmitter_id]->size; b++)if(manager->terminals[s.transmitter_id]->coordinates[b]->value != vals[b]){
+                activated = false;
+                break;
+            };
+            if(activated){
+                manager->terminals[s.receiver_id]->values = s.signal;
+                if(s.clamper) manager->terminals[s.receiver_id]->clamped = true;
+                s.flipped = true;
+                break;
+            }else if(s.slip){
+                if(s.clamper) manager->terminals[s.receiver_id]->clamped = false;
+                s.flipped = false;
+            };
+        }
+    }
+}
+
+void DataManager::Playground::reset(DataManager* manager){
+    for(Switch s : switches){
+        s.flipped = false;
+        if(s.clamper) manager->terminals[s.receiver_id]->clamped = false;
+        fill(manager->terminals[s.receiver_id]->values.begin(), manager->terminals[s.receiver_id]->values.end(), false);
+    }
+}
+
+DataManager::Playground::Playground(){
+    switches = {};
+}
+
 void DataManager::makeDatasetManager(string p){
     data_source.emplace<Dataset>(this, p);
 }
 void DataManager::makeNethackManager(vector<int> input_indexes, int output_index){
     data_source.emplace<NethackManager>(this, input_indexes, output_index);
-};
+}
+void DataManager::makePlayground(){
+    data_source.emplace<Playground>();
+}

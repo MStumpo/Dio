@@ -1,6 +1,7 @@
 #include "Network.h"
 #include <cstdio>
 #include <cmath>
+
 #include <omp.h>
 #include <algorithm>
 #include "SharedNetwork.h"
@@ -115,13 +116,15 @@ void Network::AdjMatrix::initialize() {
 
 }
 
-void Network::AdjMatrix::updateAdj() {
+void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0 and 1. In case of no reward both learning and regularizing terms equally act
     size_t N = data.size();
 
     auto A = entropyAndContribution();
     vector<vector<double>> C = A.first;
     vector<double> E = A.second;
-    //vector<double> E = colEntropy();
+
+    double reward_factor1 = (reward == NAN) ? 1 : (reward);
+    double reward_factor2 = (reward == NAN) ? 1 : min(max(1-reward,1.0),0.0);
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
@@ -129,10 +132,9 @@ void Network::AdjMatrix::updateAdj() {
 
             //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->destination->trace,2) + data[i][j]->sender->value));
 
-
             data[i][j]->value += parent.hp.lr*(
-                data[i][j]->U*(data[i][j]->destination->value*data[i][j]->sender->trace - data[i][j]->sender->value*data[i][j]->destination->trace)/pow(E[j], parent.hp.entropy_factor)
-                - parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*abs(C[i][j])/N);
+                reward_factor1*(data[i][j]->destination->value*data[i][j]->U - parent.hp.alpha*data[i][j]->sender->value*data[i][j]->destination->trace)*exp(-E[j]*parent.hp.entropy_factor)
+                - reward_factor2*parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*abs(C[i][j]));
 
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));

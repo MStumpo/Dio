@@ -26,6 +26,5 @@ struct DataTerminal
     };
     DataTerminal(int i, size_t s, bool c) :
     id(i), size(s), calibration(c), values(vector<uint8_t>(s, 0)){
-
     }
 };

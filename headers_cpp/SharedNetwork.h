@@ -40,7 +40,8 @@ struct SharedNetwork {
     void updateTrace();
     void resetRandom();
     void neuronFiring();
-    void clampData(bool is_nh);
+    void clampData();
     void runDataset(int iterations, int train_window, int test_window, int null_window, int optimize_period, int verb);
     void runNethackOnline(int n_games, int verb);
+    void runPlayground(size_t iterations, size_t window, bool optimize = false, int verb = 1);
 };

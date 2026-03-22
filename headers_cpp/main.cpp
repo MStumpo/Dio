@@ -43,7 +43,7 @@ int main(int argc, char *argv[]){
 
 	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
 	*/
-		//Nethack screen bits is 5x5x2 = 50
+	/*	//Nethack screen bits is 5x5x2 = 50
 	HyperParameters hp1;
 	HyperParameters hp2;
 	HyperParameters hp3;
@@ -59,7 +59,6 @@ int main(int argc, char *argv[]){
 
 	vector<int> INPUT_INDEXES = {0,1,2};
 	int OUTPUT_INDEX = 3;
-
 
 	SharedNetwork shared_net;
 
@@ -82,6 +81,53 @@ int main(int argc, char *argv[]){
 	shared_net.data_manager->makeNethackManager(INPUT_INDEXES, OUTPUT_INDEX);
 
 	shared_net.runNethackOnline(300000, 2);
+	*/
+	vector<HyperParameters> hp = {HyperParameters(30), HyperParameters(30), HyperParameters(30)};
+
+	SharedNetwork shared_net;
+
+	for(HyperParameters& haho : hp) shared_net.makeSubNetwork(haho);
 	
+	vector<vector<int>> MERGE_MATRIX = {{0, 5, 5}, 
+										{0, 0, 5},
+										{0, 0, 0}};
+
+
+	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
+
+
+	//Switch(size_t transmitter, size_t receiver, vector<vector<uint8_t>> trig, vector<uint8_t> output, bool slippery = false, bool clamps = false, double rew = 0)
+
+	DataTerminal t0 = DataTerminal(0, 4, false);
+	DataTerminal t1 = DataTerminal(1, 8, false);
+	DataTerminal t2 = DataTerminal(2, 4, false);
+	DataTerminal t3 = DataTerminal(3, 4, false);
+	DataTerminal t4 = DataTerminal(4, 5, true);
+
+	t4.values = {0,0,0,1};
+
+	t0.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 4);
+	t1.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 8); //t0 is contained in t1
+	t2.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 4);
+	t3.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin(), shared_net.sub_networks[2]->neurons.begin() + 4);
+	t4.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin()+5, shared_net.sub_networks[0]->neurons.begin() + 5+4);
+	
+	using Switch = DataManager::Playground::Switch;
+	vector<Switch> myswitches= {
+		Switch(0, 2, {{0,0,1,1}}, {1,0,0,1}, false, true, 0.2),
+		Switch(1, 3, {{0,0,1,1,1,1,0,0}}, {0,1,1,0}, true, true, 0.8)
+	};
+
+	for(DataTerminal t : {t0,t1,t2,t3, t4}){
+		shared_net.data_manager->terminals.push_back(make_unique<DataTerminal>(move(t))); //yes I know there's no point in assigning ids if everything just mentions them by vector index but uhm uuuhm uuuuuuh
+	}
+	shared_net.data_manager->makePlayground();
+
+
+	get<DataManager::Playground>(shared_net.data_manager->data_source).switches = myswitches;
+
+
+	shared_net.runPlayground(1000000, 100000, true, 2);
+
 	return 0;
 }
