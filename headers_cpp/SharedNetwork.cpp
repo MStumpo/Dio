@@ -281,25 +281,28 @@ void SharedNetwork::runNethackOnline(int n_games = 300, int verb = 69){
 
 void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimize, int verb){
 
-    for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) if(terminal->calibration) terminal->clamped = true; //in the context of playground calibration terminals are always clamped no matter what so the network has some stable signals
+    for(unique_ptr<DataTerminal>& terminal : data_manager->terminals) terminal->clamped = terminal->calibration;
+
     for(size_t i = 0; i < iterations; i++){
         get<DataManager::Playground>(data_manager->data_source).reset(data_manager.get());
         double av_reward = 0;
         for(size_t t = 0; t < window; t++){
+
             clampData();
             neuronFiring();
-            get<DataManager::Playground>(data_manager->data_source).applySwitches(data_manager.get());
+            clampData();
+            
+            //get<DataManager::Playground>(data_manager->data_source).applySwitches(data_manager.get());
             updateTrace();
-            if(!optimize){
-                for(auto& net : sub_networks) net->adj.updateAdj();
-            }else{
-                double rere = get<DataManager::Playground>(data_manager->data_source).reward();
-                for(auto& net : sub_networks) net->adj.updateAdj(rere);
-                av_reward += rere;
-            }
-            string message = "";
+            
+            double reward = get<DataManager::Playground>(data_manager->data_source).reward();
+            for(auto& net : sub_networks) net->adj.updateAdj(reward);
+            av_reward += reward;
+
+
+            string message = format("ITERATION {}/{} , reward {}\n", i, iterations, reward);
             if(verb > 0){
-                message = "\nSWITCHES: ";
+                message.append("\nSWITCHES: ");
                 for(DataManager::Playground::Switch s : get<DataManager::Playground>(data_manager->data_source).switches) message.append(format(" reward {}, flipped {} \n", s.reward , s.flipped ? "ON" : "OFF"));
             }
             if(verb >= 4){
@@ -316,13 +319,13 @@ void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimiz
             message.append("\n NETS: ");
             for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
             }
-            progress_bar(i*window + t, iterations+window, message);
+           progress_bar(i*window + t, iterations*window, message);
         }
         if(optimize){
             av_reward /= window;
             for (auto& target : sub_networks)
             {
-                target->opt.update(target->hp, 1.0 - pow(1 - av_reward, 10.0));
+                target->opt.update(target->hp, 1.0 - 0.5*pow(1 - av_reward, 2.0));
                 target->hp = target->opt.propose();
             }
         }

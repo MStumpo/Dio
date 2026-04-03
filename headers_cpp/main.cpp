@@ -103,22 +103,24 @@ int main(int argc, char *argv[]){
 	DataTerminal t2 = DataTerminal(2, 4, false);
 	DataTerminal t3 = DataTerminal(3, 4, false);
 	DataTerminal t4 = DataTerminal(4, 5, true);
-
-	t4.values = {0,0,0,1};
+	DataTerminal t5 = DataTerminal(5, 6, false);
+	t4.values = {0,1,1,0,0};
 
 	t0.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 4);
 	t1.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 8); //t0 is contained in t1
 	t2.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 4);
 	t3.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin(), shared_net.sub_networks[2]->neurons.begin() + 4);
-	t4.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin()+5, shared_net.sub_networks[0]->neurons.begin() + 5+4);
-	
+	t4.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin()+5, shared_net.sub_networks[2]->neurons.begin() + 9);
+	t5.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 6);
+
 	using Switch = DataManager::Playground::Switch;
 	vector<Switch> myswitches= {
-		Switch(0, 2, {{0,0,1,1}}, {1,0,0,1}, false, true, 0.2),
-		Switch(1, 3, {{0,0,1,1,1,1,0,0}}, {0,1,1,0}, true, true, 0.8)
+		Switch(0, 2, {{0,0,1,1}}, {1,0,0,1}, false, true, 0.3),
+		Switch(1, 3, {{0,0,1,1,1,1,0,0},{1,1,0,0,1,1,0,0}}, {0,1,1,0}, true, true, 0.5),
+		Switch(5, 3, {{1,0,0,1,0,0}}, {0,1,1,0}, true, true, 0.5)
 	};
 
-	for(DataTerminal t : {t0,t1,t2,t3, t4}){
+	for(DataTerminal t : {t0,t1,t2,t3, t4, t5}){
 		shared_net.data_manager->terminals.push_back(make_unique<DataTerminal>(move(t))); //yes I know there's no point in assigning ids if everything just mentions them by vector index but uhm uuuhm uuuuuuh
 	}
 	shared_net.data_manager->makePlayground();
@@ -127,7 +129,7 @@ int main(int argc, char *argv[]){
 	get<DataManager::Playground>(shared_net.data_manager->data_source).switches = myswitches;
 
 
-	shared_net.runPlayground(1000000, 100000, true, 2);
+	shared_net.runPlayground(1000, 10000, true, 2);
 
 	return 0;
 }

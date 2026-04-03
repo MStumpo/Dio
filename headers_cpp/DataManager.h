@@ -83,9 +83,7 @@ struct DataManager
     };
 
     struct Playground{
-        //some terminals will always be clamped, some terminals will respond to outputs from the network and change others, some will give a reward signal
-        //switch terminals: one terminal will have a set of trigger values that will cause another one to assume a set of values and possibly clamp
-        //switch objects: (switch terminal ; activation value) -> (receiver terminal ; output value)
+        //some terminals will always be clamped (calibration true), some terminals will respond to outputs from the network and change others, some will give a reward signal
         //Since one neuron can be referenced by multiple terminals then we can have multiple switches with overlapping terminals for AND/OR logic
         struct Switch{
             size_t transmitter_id;
@@ -95,7 +93,7 @@ struct DataManager
             bool clamper = false; //if the receiver terminal wasn't clamped before it becomes clamped when the switch is flipped; this is permanent until reset
             double reward = 0;
             bool slip = false; //slippery switches turn back off when the terminal stops matching
-            bool flipped = false;
+            bool flipped;
             Switch(size_t transmitter, size_t receiver, vector<vector<uint8_t>> trig, vector<uint8_t> output, bool slippery = false, bool clamps = false, double rew = 0): 
             transmitter_id(transmitter), receiver_id(receiver), triggers(trig), signal(output), clamper(clamps), reward(rew), slip(slippery) {};
         };

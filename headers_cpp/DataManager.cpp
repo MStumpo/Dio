@@ -298,17 +298,16 @@ void DataManager::NethackManager::sendAction(DataManager* manager) {
 
 double DataManager::Playground::reward(){
     double final_reward = 0;
-    for(Switch s : switches) if(s.flipped) final_reward += s.reward;
+    for(Switch& s : switches) if(s.flipped) final_reward += s.reward;
 
-    return min(max(final_reward, 1.0),-1.0);
+    return max(min(final_reward, 1.0),-1.0);
 }
 
 void DataManager::Playground::applySwitches(DataManager* manager){
-    for(Switch s : switches){
+    for(Switch& s : switches){
         if((!s.slip && s.flipped)) continue;
-        bool activated = true;
         for(vector<uint8_t> vals : s.triggers){
-            activated = true;
+            bool activated = true;
             for(int b = 0; b < manager->terminals[s.transmitter_id]->size; b++)if(manager->terminals[s.transmitter_id]->coordinates[b]->value != vals[b]){
                 activated = false;
                 break;
@@ -317,6 +316,7 @@ void DataManager::Playground::applySwitches(DataManager* manager){
                 manager->terminals[s.receiver_id]->values = s.signal;
                 if(s.clamper) manager->terminals[s.receiver_id]->clamped = true;
                 s.flipped = true;
+                printf("WA\nWAAAAAAAAAAAAAA\nAAAAAAAAAAA");
                 break;
             }else if(s.slip){
                 if(s.clamper) manager->terminals[s.receiver_id]->clamped = false;
@@ -327,10 +327,9 @@ void DataManager::Playground::applySwitches(DataManager* manager){
 }
 
 void DataManager::Playground::reset(DataManager* manager){
-    for(Switch s : switches){
+    for(Switch& s : switches){
         s.flipped = false;
-        if(s.clamper) manager->terminals[s.receiver_id]->clamped = false;
-        fill(manager->terminals[s.receiver_id]->values.begin(), manager->terminals[s.receiver_id]->values.end(), false);
+        if(!manager->terminals[s.receiver_id]->calibration) manager->terminals[s.receiver_id]->clamped = false;
     }
 }
 

@@ -124,7 +124,7 @@ void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0
     vector<double> E = A.second;
 
     double reward_factor1 = (reward == NAN) ? 1 : (reward);
-    double reward_factor2 = (reward == NAN) ? 1 : min(max(1-reward,1.0),0.0);
+    double reward_factor2 = (reward == NAN) ? 1 : min(max(1-reward,2.0),0.0);
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
@@ -134,7 +134,7 @@ void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0
 
             data[i][j]->value += parent.hp.lr*(
                 reward_factor1*(data[i][j]->destination->value*data[i][j]->U - parent.hp.alpha*data[i][j]->sender->value*data[i][j]->destination->trace)*exp(-E[j]*parent.hp.entropy_factor)
-                - reward_factor2*parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*abs(C[i][j]));
+                - reward_factor2*parent.hp.reg*data[i][j]->value*data[i][j]->destination->trace*abs(C[i][j])/N);
 
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
