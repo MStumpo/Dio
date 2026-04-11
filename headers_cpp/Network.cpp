@@ -123,8 +123,8 @@ void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0
     vector<vector<double>> C = A.first;
     vector<double> E = A.second;
 
-    double reward_factor1 = (reward == NAN) ? 1 : (reward);
-    double reward_factor2 = (reward == NAN) ? 1 : min(max(1-reward,2.0),0.0);
+    double reward_factor1 = isnan(reward) ? 1.0 : (reward);
+    double reward_factor2 = isnan(reward) ? 1.0 : max(min(1-reward,2.0),0.0);
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
@@ -139,7 +139,7 @@ void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0
 
             data[i][j]->value = max(-1.0, min(1.0, data[i][j]->value));
 
-	        //printf("DEBUG %f \n", E[j]);
+	        //printf("DEBUG %f \n", reward_factor1);
         }
     }
 }

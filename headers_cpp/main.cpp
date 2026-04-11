@@ -14,6 +14,7 @@
 //Convention: merge neurons at the end of the vector (neurons[size -i]) and apply terminals to the beggining (neurons[i]), so you're less likely to have merged neurons in terminals (which wouldn't break everything but the terminal would still only refer to the predesignated network)
 using namespace std;
 int main(int argc, char *argv[]){
+	
 	/*
 	//UNcomment this but comment the rest if you want to see dataset action
 	int TRAIN_WINDOW = 15;
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]){
 	}
 
 	shared_net.runDataset(TOTAL_ITERATIONS, TRAIN_WINDOW, TEST_WINDOW, NULL_WINDOW, OPTIMIZE_ITERATIONS, 6969);
-	*/
+	
 	/*	//Nethack screen bits is 5x5x2 = 50
 	HyperParameters hp1;
 	HyperParameters hp2;
@@ -82,6 +83,7 @@ int main(int argc, char *argv[]){
 
 	shared_net.runNethackOnline(300000, 2);
 	*/
+
 	vector<HyperParameters> hp = {HyperParameters(30), HyperParameters(30), HyperParameters(30)};
 
 	SharedNetwork shared_net;
@@ -96,7 +98,6 @@ int main(int argc, char *argv[]){
 	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
 
 
-	//Switch(size_t transmitter, size_t receiver, vector<vector<uint8_t>> trig, vector<uint8_t> output, bool slippery = false, bool clamps = false, double rew = 0)
 
 	DataTerminal t0 = DataTerminal(0, 4, false);
 	DataTerminal t1 = DataTerminal(1, 8, false);
@@ -104,25 +105,32 @@ int main(int argc, char *argv[]){
 	DataTerminal t3 = DataTerminal(3, 4, false);
 	DataTerminal t4 = DataTerminal(4, 5, true);
 	DataTerminal t5 = DataTerminal(5, 6, false);
-	t4.values = {0,1,1,0,0};
+	DataTerminal t6 = DataTerminal(6, 4, false);
+	DataTerminal t7 = DataTerminal(7,2,false);
+	t4.values = {1,0,1,0,0};
+	t4.calibration = true;
 
 	t0.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 4);
 	t1.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 8); //t0 is contained in t1
 	t2.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 4);
 	t3.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin(), shared_net.sub_networks[2]->neurons.begin() + 4);
-	t4.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin()+5, shared_net.sub_networks[2]->neurons.begin() + 9);
+	t4.coordinates = vector<NeuronPointer>(shared_net.sub_networks[2]->neurons.begin()+5, shared_net.sub_networks[2]->neurons.begin() + 10);
 	t5.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 6);
-
-	using Switch = DataManager::Playground::Switch;
-	vector<Switch> myswitches= {
-		Switch(0, 2, {{0,0,1,1}}, {1,0,0,1}, false, true, 0.3),
-		Switch(1, 3, {{0,0,1,1,1,1,0,0},{1,1,0,0,1,1,0,0}}, {0,1,1,0}, true, true, 0.5),
-		Switch(5, 3, {{1,0,0,1,0,0}}, {0,1,1,0}, true, true, 0.5)
-	};
-
-	for(DataTerminal t : {t0,t1,t2,t3, t4, t5}){
+	t6.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin()+7, shared_net.sub_networks[1]->neurons.begin() + 7+4);
+	t7.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin()+4+1, shared_net.sub_networks[0]->neurons.begin() + 4+2);
+    
+	for(DataTerminal t : {t0,t1,t2,t3, t4, t5,t6,t7}){
 		shared_net.data_manager->terminals.push_back(make_unique<DataTerminal>(move(t))); //yes I know there's no point in assigning ids if everything just mentions them by vector index but uhm uuuhm uuuuuuh
 	}
+
+    //Switch(DataTerminal* transmit, vector<vector<uint8_t>> trig, bool clamps = false, double rew = 0): 
+	using Switch = DataManager::Playground::Switch;
+	vector<Switch> myswitches= {
+		Switch(shared_net.data_manager->terminals[0].get(), {{0,0,1,1}}, true, 0.3),
+		Switch(shared_net.data_manager->terminals[1].get(), {{0,0,1,1,0,0,1,1}, {0,0,1,1,1,1,0,0}}, false, 0.5),
+		Switch(shared_net.data_manager->terminals[2].get(), {{0,1,0,0}, {1,0,0,0}}, true, 0.2)
+	};
+
 	shared_net.data_manager->makePlayground();
 
 
@@ -130,6 +138,6 @@ int main(int argc, char *argv[]){
 
 
 	shared_net.runPlayground(1000, 10000, true, 2);
-
+	
 	return 0;
 }

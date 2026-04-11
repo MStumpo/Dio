@@ -300,37 +300,34 @@ double DataManager::Playground::reward(){
     double final_reward = 0;
     for(Switch& s : switches) if(s.flipped) final_reward += s.reward;
 
-    return max(min(final_reward, 1.0),-1.0);
+    return final_reward;
 }
 
 void DataManager::Playground::applySwitches(DataManager* manager){
     for(Switch& s : switches){
-        if((!s.slip && s.flipped)) continue;
+        if(s.clamper && s.transmitter->clamped) continue;
         for(vector<uint8_t> vals : s.triggers){
             bool activated = true;
-            for(int b = 0; b < manager->terminals[s.transmitter_id]->size; b++)if(manager->terminals[s.transmitter_id]->coordinates[b]->value != vals[b]){
+            for(int b = 0; b < s.transmitter->size; b++)if(s.transmitter->coordinates[b]->value != vals[b]){
                 activated = false;
                 break;
-            };
+            }
             if(activated){
-                manager->terminals[s.receiver_id]->values = s.signal;
-                if(s.clamper) manager->terminals[s.receiver_id]->clamped = true;
                 s.flipped = true;
-                printf("WA\nWAAAAAAAAAAAAAA\nAAAAAAAAAAA");
+                if(s.clamper) s.transmitter->clamped = true;
                 break;
-            }else if(s.slip){
-                if(s.clamper) manager->terminals[s.receiver_id]->clamped = false;
+            }else{
                 s.flipped = false;
-            };
+            }
         }
     }
 }
 
 void DataManager::Playground::reset(DataManager* manager){
     for(Switch& s : switches){
+        s.transmitter->clamped = false;
         s.flipped = false;
-        if(!manager->terminals[s.receiver_id]->calibration) manager->terminals[s.receiver_id]->clamped = false;
-    }
+    } 
 }
 
 DataManager::Playground::Playground(){

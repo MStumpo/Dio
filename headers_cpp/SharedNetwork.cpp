@@ -291,8 +291,8 @@ void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimiz
             clampData();
             neuronFiring();
             clampData();
-            
-            //get<DataManager::Playground>(data_manager->data_source).applySwitches(data_manager.get());
+
+            get<DataManager::Playground>(data_manager->data_source).applySwitches(data_manager.get());
             updateTrace();
             
             double reward = get<DataManager::Playground>(data_manager->data_source).reward();
