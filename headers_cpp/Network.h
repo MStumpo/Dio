@@ -15,9 +15,11 @@ struct Neuron {
     double trace;
     std::vector<Network*> members;
     double buf = 0.0;
+    double reward = NAN;
     Neuron(uint8_t v = false, double t = 0.0, Network* n = nullptr)
         : value(v), trace(t), members({n}) {};
 };
+
 using NeuronPointer = std::shared_ptr<Neuron>;
 
 struct Edge {
@@ -47,7 +49,7 @@ class Network {
         std::vector<std::vector<EdgePointer>> data;
         AdjMatrix(Network& parent_network);
         void initialize();
-        void updateAdj(double reward= NAN);
+        void updateAdj();
         const std::vector<std::vector<EdgePointer>>& getData() const { return data; }
     };
 

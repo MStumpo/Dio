@@ -343,3 +343,58 @@ void DataManager::makeNethackManager(vector<int> input_indexes, int output_index
 void DataManager::makePlayground(){
     data_source.emplace<Playground>();
 }
+void DataManager::makeLogicTest(){
+    data_source.emplace<LogicTest>();
+}
+
+double DataManager::LogicTest::LogicRule::logicScore(DataManager* manager){
+    double score = 0.0;
+    uint8_t result = 0;
+    bool first = true;
+
+    for (uint8_t bit : transmitter->values)
+        switch (operation) {
+        case 0: // identity (just pass through last value or collect)
+            result = bit;
+            break;
+
+        case 1: // NOT (bitwise invert each bit)
+            result = !bit;
+            break;
+
+        case 2: // AND
+            if (first) {
+                result = bit;
+                first = false;
+            } else {
+                result &= bit;
+            }
+            break;
+
+        case 3: // OR
+            if (first) {
+                result = bit;
+                first = false;
+            } else {
+                result |= bit;
+            }
+            break;
+
+        case 4: // XOR
+            if (first) {
+                result = bit;
+                first = false;
+            } else {
+                result ^= bit;
+            }
+            break;
+        default:
+            // invalid operation
+            break;
+    }
+
+    for(size_t b = 0; b < receiver->coordinates.size(); b++) score += (receiver->coordinates[b]->value == result) ? 1.0/receiver->values.size() : -1.0/receiver->values.size();
+
+
+    return score;
+}

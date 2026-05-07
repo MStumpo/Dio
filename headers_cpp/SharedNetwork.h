@@ -44,4 +44,5 @@ struct SharedNetwork {
     void runDataset(int iterations, int train_window, int test_window, int null_window, int optimize_period, int verb);
     void runNethackOnline(int n_games, int verb);
     void runPlayground(size_t iterations, size_t window, bool optimize = false, int verb = 1);
+    void runLogicTest(size_t iterations, size_t window, size_t rest_time, vector<vector<vector<uint8_t>>> dataset = {{}}, int optimize_period = -1);
 };

@@ -8,6 +8,7 @@
 #include <format>
 #include <thread>
 #include <cstring>
+#include <unistd.h>
 using namespace std;
 
 
@@ -296,11 +297,12 @@ void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimiz
             updateTrace();
             
             double reward = get<DataManager::Playground>(data_manager->data_source).reward();
-            for(auto& net : sub_networks) net->adj.updateAdj(reward);
+            for(auto& net : sub_networks) for(auto& neuron : net->neurons) neuron->reward = reward;
+            for(auto& net : sub_networks) net->adj.updateAdj();
             av_reward += reward;
 
 
-            string message = format("ITERATION {}/{} , reward {}\n", i, iterations, reward);
+            string message = format("ITERATION {}/{} , reward {}|\n", i, iterations, reward);
             if(verb > 0){
                 message.append("\nSWITCHES: ");
                 for(DataManager::Playground::Switch s : get<DataManager::Playground>(data_manager->data_source).switches) message.append(format(" reward {}, flipped {} \n", s.reward , s.flipped ? "ON" : "OFF"));
@@ -316,12 +318,64 @@ void SharedNetwork::runPlayground(size_t iterations, size_t window, bool optimiz
                 message.append(" ADJ MATRICES: \n");
                 for(auto& net : sub_networks) message.append(format(" {}|", net->adjString()));
             }if(verb >= 2){
-            message.append("\n NETS: ");
-            for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+                message.append("\n NETS: ");
+                for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
             }
            progress_bar(i*window + t, iterations*window, message);
         }
         if(optimize){
+            av_reward /= window;
+            for (auto& target : sub_networks)
+            {
+                target->opt.update(target->hp, 1.0 - 0.5*pow(1 - av_reward, 2.0));
+                target->hp = target->opt.propose();
+            }
+        }
+    }
+}
+
+void SharedNetwork::runLogicTest(size_t iterations, size_t window, size_t rest_time, vector<vector<vector<uint8_t>>> dataset, int optimize_period){
+    //dataset is [rule/transmitter][datapoint][bit]-shaped
+
+    for(size_t i = 0; i < iterations; i++){
+        for(auto& rule : get<DataManager::LogicTest>(data_manager->data_source).rules) rule.transmitter->clamped = true;
+        double av_reward = 0;
+
+        for(size_t d = 0; d < dataset.size(); d++) for(size_t t = 0; t < window; t++){
+            
+            string message = format("ITERATION {}/{} , reward {}|\n", i, iterations, av_reward);
+            message.append("\n NETS: ");
+            for(auto& net : sub_networks) message.append(format(" {}|", net->networkString()));
+            progress_bar(i*window + t, iterations*window, message);
+            
+            for(size_t r = 0; r < get<DataManager::LogicTest>(data_manager->data_source).rules.size(); r++) get<DataManager::LogicTest>(data_manager->data_source).rules[r].transmitter->values = dataset[r][d];
+            clampData();
+            neuronFiring();
+            clampData();
+            updateTrace();
+
+            //per neuron reward so return a vector like {Nan, Nan, ..., reward_actual_value, Nan, ...} so the clamped neurons learn via reinforcement and the others rearrange
+            
+            //with playground for now it's all applied to the whole network so now let's try to uhm I am so bored
+            for(auto& rule : get<DataManager::LogicTest>(data_manager->data_source).rules){ 
+                //WARNING: assuming each terminal is delegated to only one network so I'll just check the first neuron and the first network it belongs to
+                double reward = rule.logicScore(data_manager.get());
+                for(auto& neuron : rule.transmitter->coordinates[0]->members[0]->neurons) neuron->reward = reward; //I am in constant pain
+                for(auto& neuron : rule.receiver->coordinates[0]->members[0]->neurons) neuron->reward = reward; //Wa how did you guess that I'm not a professional programmer?
+                
+                av_reward += reward/(dataset.size()*window*get<DataManager::LogicTest>(data_manager->data_source).rules.size());
+            }
+            for(auto& net : sub_networks) net->adj.updateAdj();
+        
+        }
+
+        for(size_t rest = 0; rest < rest_time; rest++){
+            for(auto& rule : get<DataManager::LogicTest>(data_manager->data_source).rules) rule.transmitter->clamped = false;
+            neuronFiring();
+            updateTrace();
+        }
+
+        if(iterations%optimize_period == 0){
             av_reward /= window;
             for (auto& target : sub_networks)
             {

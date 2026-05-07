@@ -84,6 +84,8 @@ int main(int argc, char *argv[]){
 	shared_net.runNethackOnline(300000, 2);
 	*/
 
+	/*
+
 	vector<HyperParameters> hp = {HyperParameters(30), HyperParameters(30), HyperParameters(30)};
 
 	SharedNetwork shared_net;
@@ -96,8 +98,6 @@ int main(int argc, char *argv[]){
 
 
 	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
-
-
 
 	DataTerminal t0 = DataTerminal(0, 4, false);
 	DataTerminal t1 = DataTerminal(1, 8, false);
@@ -138,6 +138,57 @@ int main(int argc, char *argv[]){
 
 
 	shared_net.runPlayground(1000, 10000, true, 2);
+	*/
+
+	vector<HyperParameters> hp = {HyperParameters(30), HyperParameters(30), HyperParameters(30)};
+
+
+	SharedNetwork shared_net;
+
+	for(HyperParameters& haho : hp) shared_net.makeSubNetwork(haho);
 	
+	vector<vector<int>> MERGE_MATRIX = {{0, 5, 5}, 
+										{0, 0, 5},
+										{0, 0, 0}};
+
+
+	shared_net.mergeNeuronsFromMatrix(MERGE_MATRIX, false);
+
+	DataTerminal transmitter_1 = DataTerminal(0, 4, false);
+	DataTerminal receiver_1 = DataTerminal(1, 2, false);
+
+	transmitter_1.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin(), shared_net.sub_networks[0]->neurons.begin() + 4);
+	receiver_1.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin()+5, shared_net.sub_networks[0]->neurons.begin() + 7);
+
+	DataTerminal transmitter_2 = DataTerminal(2, 4, false);
+	DataTerminal receiver_2 = DataTerminal(3, 2, false);
+
+	transmitter_2.coordinates = vector<NeuronPointer>(shared_net.sub_networks[0]->neurons.begin()+8, shared_net.sub_networks[0]->neurons.begin() + 12);
+	receiver_2.coordinates = vector<NeuronPointer>(shared_net.sub_networks[1]->neurons.begin(), shared_net.sub_networks[1]->neurons.begin() + 2);
+
+    
+	for(DataTerminal t : {transmitter_1, transmitter_2, receiver_1, receiver_2}){
+		shared_net.data_manager->terminals.push_back(make_unique<DataTerminal>(move(t))); //yes I know there's no point in assigning ids if everything just mentions them by vector index but uhm uuuhm uuuuuuh
+	}
+
+	using Rule = DataManager::LogicTest::LogicRule;
+
+	vector<Rule> rules = {
+		Rule(shared_net.data_manager->terminals[0].get(), shared_net.data_manager->terminals[1].get(), 0),
+		Rule(shared_net.data_manager->terminals[2].get(), shared_net.data_manager->terminals[3].get(), 1)
+	};
+    //dataset is [rule/transmitter][datapoint][bit]-shaped
+
+	vector<vector<vector<uint8_t>>> dataset = {
+		{{0,0,0,0},{0,1,0,1},{1,0,1,0},{0,0,0,0}},
+		{{1,1,0,0},{1,1,1,1},{1,0,1,0},{1,0,0,1}},
+	};
+
+	shared_net.data_manager->makeLogicTest();
+
+	get<DataManager::LogicTest>(shared_net.data_manager->data_source).rules = rules;
+ 	
+ 	//size_t iterations, size_t window, size_t rest_time, vector<vector<vector<uint8_t>>> dataset, int optimize_period
+	shared_net.runLogicTest(10000, 1000, 10, dataset, 10);
 	return 0;
 }

@@ -102,8 +102,23 @@ struct DataManager
         void applySwitches(DataManager* manager);
     };
 
-    variant<monostate, Dataset, NethackManager, Playground> data_source;
+
+    struct LogicTest{
+        struct LogicRule{
+            DataTerminal* transmitter; //clamps on transmitter
+            DataTerminal* receiver; //listens on receiver; all bits should be either 0 or 1 depending on the operation result
+            int operation = 0; //0: identity; 1: NOT; 2: AND; 3: OR; 4: XOR; 5: XAND
+            LogicRule(DataTerminal* transmit, DataTerminal* rec, int  op = 0): transmitter(transmit), receiver(rec), operation(op){};
+            double logicScore(DataManager* manager);
+        };
+
+        vector<LogicRule> rules;
+        
+    };
+
+    variant<monostate, Dataset, NethackManager, Playground, LogicTest> data_source;
     void makeDatasetManager(string p);
     void makeNethackManager(vector<int> input_indexes, int output_index);
     void makePlayground();
+    void makeLogicTest();
 };

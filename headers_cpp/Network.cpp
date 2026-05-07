@@ -116,21 +116,20 @@ void Network::AdjMatrix::initialize() {
 
 }
 
-void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0 and 1. In case of no reward both learning and regularizing terms equally act
+void Network::AdjMatrix::updateAdj() { //reward should be between 0 and 1. In case of no reward both learning and regularizing terms equally act
     size_t N = data.size();
 
     auto A = entropyAndContribution();
     vector<vector<double>> C = A.first;
     vector<double> E = A.second;
 
-    double reward_factor1 = isnan(reward) ? 1.0 : (reward);
-    double reward_factor2 = isnan(reward) ? 1.0 : max(min(1-reward,2.0),0.0);
 
     //#pragma omp for collapse(2)
     for (int i = 0; i < N; i++) {
         for (int j = 0; j < N; j++) {
 
-            //data[i][j]->value += parent.hp.lr*(data[i][j]->destination->value * data[i][j]->U  - parent.hp.reg*C[i][j]*pow(E[j], parent.hp.entropy_factor)*(pow(data[i][j]->destination->trace,2) + data[i][j]->sender->value));
+            double reward_factor1 = isnan(data[i][j]->sender->reward) ? 1.0 : data[i][j]->sender->reward;
+            double reward_factor2 = isnan(data[i][j]->sender->reward) ? 1.0: max(min(1-data[i][j]->sender->reward,2.0),0.0);
 
             data[i][j]->value += parent.hp.lr*(
                 reward_factor1*(data[i][j]->destination->value*data[i][j]->U - parent.hp.alpha*data[i][j]->sender->value*data[i][j]->destination->trace)*exp(-E[j]*parent.hp.entropy_factor)
@@ -141,6 +140,7 @@ void Network::AdjMatrix::updateAdj(double reward) { //reward should be between 0
 
 	        //printf("DEBUG %f \n", reward_factor1);
         }
+        data[i][0]->sender->reward = NAN; //because neurons[i] == 
     }
 }
 
